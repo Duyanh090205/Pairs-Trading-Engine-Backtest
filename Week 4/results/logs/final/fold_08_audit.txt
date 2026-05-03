@@ -1,0 +1,86 @@
+=== FOLD 08 AUDIT LOG ===
+Generated: 2026-05-03 01:26:22
+
+[1] PARAMETER HASH
+config_hash   = dc4a40f7e817b762
+  fold                     = 8
+  formation_start          = 2022-08-01
+  formation_end            = 2023-01-31
+  trading_month            = 2023-02
+  delta                    = 1e-07
+  entry_z                  = 3.5
+  tc_bps                   = 30
+  borrow_bps_yr            = 50
+  n_open_pairs_max         = 50
+  eos_flatten              = False
+  hl_max_days              = 6.0
+  corr25_thresh            = 0.25
+
+[2] KALMAN DELTA + MULTI-CRITERION METRICS
+  Selected delta: 1e-07
+  WARNING: delta at grid boundary
+  Grid results:
+
+[3] TRADE LOG SAMPLE (first 20 trades)
+  entry_ts                 exit_ts                   dir   bars  gross_bps    net_bps exit_reason
+  2023-02-07 10:05:00-05:00 2023-02-07 14:57:00-05:00    1    277      245.6      184.0 zero_cross
+  2023-02-24 11:50:00-05:00 2023-02-28 15:59:00-05:00    1    695     -139.5     -199.7 end_of_window
+
+[4] COMPARATIVE METRICS
+  Primary Sharpe  : -0.4854
+  MaxDD (bar)     : -0.0005
+  CAGR            : -0.0020
+  Calmar          : -4.0700
+  Win Rate        : 50.00%
+  N Trades        : 2
+  Avg Hold (bars) : 486.0
+  Avg Net (bps)   : -7.84
+  Cost commission : $243.26
+  Cost borrow     : $0.40
+  Cost rebalance  : $0.00
+  NC empirical Sharpe  : None
+  NC synthetic Sharpe  : -15.5562
+  NC bootstrap mean+2sd: -7.7194
+  NC PASS              : True
+  NC source            : synthetic
+  Latency sweep:
+       t+1  Sharpe=-0.4854
+       t+2  Sharpe=-1.8658
+       t+5  Sharpe=-3.0030
+      t+10  Sharpe=-1.8016
+    random  Sharpe=-1.8658
+  Latency pass: False
+
+[5] TIMESTAMP VERIFICATION PROOF
+  Total trades              : 2
+  exec_ts > signal_ts (100%): True
+  LOOKAHEAD STATUS          : PASS
+
+[6] NEGATIVE CONTROL BOOTSTRAP
+  Bootstrap Sharpes (N=1000): mean=-16.3977  std=4.3392
+  Threshold (mean+2sd)       : -7.7194
+  Primary Sharpe             : -0.4854
+  Bootstrap pct > 0          : 0.0%
+  NC PASS                    : True
+  Discrimination STATUS      : PASS
+
+[7] RED FLAG STATUS + ENVIRONMENT HASH
+  [OK     ] Lookahead leak (Sharpe>5 or pos mismatch): False
+  [OK     ] NC discrimination fail: False
+  [OK     ] Kalman spread degenerate: False
+  [WARNING] Delta at grid boundary: True
+  [OK     ] Delta instability (>2 steps): False
+  [OK     ] Universal constraint fail (no delta): False
+
+  OVERALL STATUS: OK
+
+  Environment:
+    Python   : 3.12.1
+    Platform : Windows-11-10.0.26200-SP0
+    numpy    : 1.26.4
+    pandas   : 2.2.2
+    numba    : 0.62.1
+    statsmodels: 0.14.5
+    env_hash : 9ddc33081561
+
+=== END AUDIT LOG ===

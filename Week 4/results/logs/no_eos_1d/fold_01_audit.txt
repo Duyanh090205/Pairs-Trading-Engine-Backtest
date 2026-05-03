@@ -1,0 +1,109 @@
+=== FOLD 01 AUDIT LOG ===
+Generated: 2026-05-01 09:36:06
+
+[1] PARAMETER HASH
+config_hash   = 3affea1a75b7df90
+  fold                     = 1
+  formation_start          = 2022-01-03
+  formation_end            = 2022-06-30
+  trading_month            = 2022-07
+  delta                    = 1e-07
+  entry_z                  = 2.0
+  tc_bps                   = 30
+  borrow_bps_yr            = 50
+  n_open_pairs_max         = 50
+  eos_flatten              = False
+  max_holding              = 1d
+
+[2] KALMAN DELTA + MULTI-CRITERION METRICS
+  Selected delta: 1e-07
+  WARNING: delta at grid boundary
+  Grid results:
+    delta=1e-07  kurt_dev= 0.323  HL=  4.11d  ACF78=0.855 [FEASIBLE] <-- SELECTED
+    delta=1e-06  kurt_dev= 0.667  HL=  1.57d  ACF78=0.697
+    delta=1e-05  kurt_dev= 1.503  HL=  0.49d  ACF78=0.309
+    delta=1e-04  kurt_dev= 3.834  HL=  0.18d  ACF78=0.048
+    delta=1e-03  kurt_dev=10.344  HL=  0.06d  ACF78=0.027
+
+[3] TRADE LOG SAMPLE (first 20 trades)
+  entry_ts                 exit_ts                   dir   bars  gross_bps    net_bps exit_reason
+  2022-07-06 12:09:00-04:00 2022-07-07 12:23:00-04:00    1    390     -236.9     -315.9 max_holding
+  2022-07-12 10:06:00-04:00 2022-07-13 10:39:00-04:00   -1    390      -71.4     -147.8 max_holding
+  2022-07-19 10:30:00-04:00 2022-07-20 11:33:00-04:00    1    390     -279.6     -357.3 max_holding
+  2022-07-26 10:07:00-04:00 2022-07-27 11:13:00-04:00   -1    390      119.8       46.0 max_holding
+  2022-07-29 10:16:00-04:00 2022-07-29 15:59:00-04:00    1    307     -113.4     -186.4 end_of_window
+  2022-07-12 14:22:00-04:00 2022-07-13 10:06:00-04:00   -1    114       62.6        7.5 zero_cross
+  2022-07-13 10:16:00-04:00 2022-07-13 15:00:00-04:00    1    217       27.1      -29.4 zero_cross
+  2022-07-14 10:07:00-04:00 2022-07-15 10:57:00-04:00    1    390      -88.6     -145.8 max_holding
+  2022-07-19 10:21:00-04:00 2022-07-20 11:23:00-04:00   -1    390       57.2        0.9 max_holding
+  2022-07-21 15:49:00-04:00 2022-07-25 10:39:00-04:00   -1    390     -120.7     -176.1 max_holding
+  2022-07-27 10:05:00-04:00 2022-07-27 14:47:00-04:00   -1    253       48.5       -7.2 zero_cross
+  2022-07-12 15:02:00-04:00 2022-07-14 10:06:00-04:00    1    390      -66.6     -100.5 max_holding
+  2022-07-19 13:35:00-04:00 2022-07-20 12:42:00-04:00   -1    261       57.9       23.6 zero_cross
+  2022-07-21 10:18:00-04:00 2022-07-21 14:07:00-04:00    1    158       69.5       34.6 zero_cross
+  2022-07-22 12:27:00-04:00 2022-07-25 15:51:00-04:00    1    390      -11.1      -45.6 max_holding
+  2022-07-27 15:26:00-04:00 2022-07-29 10:17:00-04:00   -1    390      -16.7      -51.1 max_holding
+  2022-07-07 10:03:00-04:00 2022-07-08 10:24:00-04:00   -1    390     -263.3     -405.6 max_holding
+  2022-07-14 10:02:00-04:00 2022-07-15 10:05:00-04:00    1    369     -579.8     -717.4 zero_cross
+  2022-07-18 10:09:00-04:00 2022-07-19 10:51:00-04:00   -1    390       86.7      -42.9 max_holding
+  2022-07-22 10:01:00-04:00 2022-07-25 10:28:00-04:00   -1    390       71.6      -50.5 max_holding
+  ... (47 more trades not shown)
+
+[4] COMPARATIVE METRICS
+  Primary Sharpe  : -10.3071
+  MaxDD (bar)     : -0.0093
+  CAGR            : -0.0764
+  Calmar          : -8.2516
+  Win Rate        : 26.87%
+  N Trades        : 67
+  Avg Hold (bars) : 302.3
+  Avg Net (bps)   : -68.22
+  Cost commission : $8,803.33
+  Cost borrow     : $15.02
+  Cost rebalance  : $3.32
+  NC empirical Sharpe  : None
+  NC synthetic Sharpe  : -3.5721
+  NC bootstrap mean+2sd: 2.0298
+  NC PASS              : False
+  NC source            : synthetic
+  Latency sweep:
+       t+1  Sharpe=-10.3071
+       t+2  Sharpe=-10.3144
+       t+5  Sharpe=-9.9921
+      t+10  Sharpe=-9.4896
+    random  Sharpe=-10.3144
+  Latency pass: False
+
+[5] TIMESTAMP VERIFICATION PROOF
+  Total trades              : 67
+  exec_ts > signal_ts (100%): False
+  LOOKAHEAD STATUS          : FAIL
+
+[6] NEGATIVE CONTROL BOOTSTRAP
+  Bootstrap Sharpes (N=1000): mean=-3.7300  std=2.8799
+  Threshold (mean+2sd)       : 2.0298
+  Primary Sharpe             : -10.3071
+  Bootstrap pct > 0          : 10.0%
+  NC PASS                    : False
+  Discrimination STATUS      : FAIL
+
+[7] RED FLAG STATUS + ENVIRONMENT HASH
+  [ERROR  ] Lookahead leak (Sharpe>5 or pos mismatch): True
+  [ERROR  ] NC discrimination fail: True
+  [OK     ] Kalman spread degenerate: False
+  [WARNING] Delta at grid boundary: True
+  [OK     ] Delta instability (>2 steps): False
+  [OK     ] Universal constraint fail (no delta): False
+
+  OVERALL STATUS: CRITICAL
+
+  Environment:
+    Python   : 3.12.1
+    Platform : Windows-11-10.0.26200-SP0
+    numpy    : 1.26.4
+    pandas   : 2.2.2
+    numba    : 0.62.1
+    statsmodels: 0.14.5
+    env_hash : 9ddc33081561
+
+=== END AUDIT LOG ===

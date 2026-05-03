@@ -1,0 +1,100 @@
+=== FOLD 38 AUDIT LOG ===
+Generated: 2026-05-03 00:56:03
+
+[1] PARAMETER HASH
+config_hash   = 9f413f67ff53c2d2
+  fold                     = 38
+  formation_start          = 2025-02-01
+  formation_end            = 2025-07-31
+  trading_month            = 2025-08
+  delta                    = 1e-07
+  entry_z                  = 3.0
+  tc_bps                   = 30
+  borrow_bps_yr            = 50
+  n_open_pairs_max         = 50
+  eos_flatten              = False
+  hl_max_days              = 6.0
+  corr25_thresh            = 0.25
+
+[2] KALMAN DELTA + MULTI-CRITERION METRICS
+  Selected delta: 1e-07
+  WARNING: delta at grid boundary
+  Grid results:
+
+[3] TRADE LOG SAMPLE (first 20 trades)
+  entry_ts                 exit_ts                   dir   bars  gross_bps    net_bps exit_reason
+  2025-08-05 10:06:00-04:00 2025-08-05 15:46:00-04:00    1    311       88.4       26.7 zero_cross
+  2025-08-06 10:09:00-04:00 2025-08-21 10:14:00-04:00    1   3199     -217.1     -277.8 zero_cross
+  2025-08-25 10:48:00-04:00 2025-08-29 15:59:00-04:00    1   1152       77.0       13.5 end_of_window
+  2025-08-15 10:21:00-04:00 2025-08-20 11:43:00-04:00   -1   1190       44.9      -18.9 zero_cross
+  2025-08-06 10:04:00-04:00 2025-08-08 13:05:00-04:00    1    732      394.1      264.3 zero_cross
+  2025-08-05 10:27:00-04:00 2025-08-12 15:43:00-04:00   -1   2104      -75.7     -174.7 zero_cross
+  2025-08-05 10:50:00-04:00 2025-08-11 11:15:00-04:00   -1   1048       -8.4      -63.4 zero_cross
+  2025-08-06 10:07:00-04:00 2025-08-11 10:55:00-04:00    1   1179      106.1       30.5 zero_cross
+  2025-08-06 10:02:00-04:00 2025-08-12 10:07:00-04:00    1   1363      121.8       82.9 zero_cross
+  2025-08-05 11:11:00-04:00 2025-08-06 10:19:00-04:00   -1    283       98.1       44.1 zero_cross
+  2025-08-21 12:39:00-04:00 2025-08-29 15:59:00-04:00    1   1350      -60.7     -113.8 end_of_window
+  2025-08-15 10:02:00-04:00 2025-08-20 10:15:00-04:00    1   1182      174.8       78.1 zero_cross
+  2025-08-26 15:48:00-04:00 2025-08-29 15:59:00-04:00   -1   1182     -176.1     -258.8 end_of_window
+  2025-08-22 10:44:00-04:00 2025-08-29 15:59:00-04:00    1   1971     -532.6     -747.3 end_of_window
+  2025-08-05 10:14:00-04:00 2025-08-07 10:13:00-04:00   -1    683      189.8       86.0 zero_cross
+  2025-08-06 10:47:00-04:00 2025-08-13 12:58:00-04:00   -1   1451       88.4       -0.5 zero_cross
+
+[4] COMPARATIVE METRICS
+  Primary Sharpe  : -3.2349
+  MaxDD (bar)     : -0.0030
+  CAGR            : -0.0270
+  Calmar          : -9.1119
+  Win Rate        : 50.00%
+  N Trades        : 16
+  Avg Hold (bars) : 1273.8
+  Avg Net (bps)   : -64.33
+  Cost commission : $2,655.28
+  Cost borrow     : $17.31
+  Cost rebalance  : $11.38
+  NC empirical Sharpe  : None
+  NC synthetic Sharpe  : -5.5462
+  NC bootstrap mean+2sd: 3.6665
+  NC PASS              : False
+  NC source            : synthetic
+  Latency sweep:
+       t+1  Sharpe=-3.2349
+       t+2  Sharpe=-3.6408
+       t+5  Sharpe=-3.9968
+      t+10  Sharpe=-4.2745
+    random  Sharpe=-3.6408
+  Latency pass: False
+
+[5] TIMESTAMP VERIFICATION PROOF
+  Total trades              : 16
+  exec_ts > signal_ts (100%): True
+  LOOKAHEAD STATUS          : PASS
+
+[6] NEGATIVE CONTROL BOOTSTRAP
+  Bootstrap Sharpes (N=1000): mean=-5.8316  std=4.7490
+  Threshold (mean+2sd)       : 3.6665
+  Primary Sharpe             : -3.2349
+  Bootstrap pct > 0          : 9.5%
+  NC PASS                    : False
+  Discrimination STATUS      : FAIL
+
+[7] RED FLAG STATUS + ENVIRONMENT HASH
+  [OK     ] Lookahead leak (Sharpe>5 or pos mismatch): False
+  [ERROR  ] NC discrimination fail: True
+  [OK     ] Kalman spread degenerate: False
+  [WARNING] Delta at grid boundary: True
+  [OK     ] Delta instability (>2 steps): False
+  [OK     ] Universal constraint fail (no delta): False
+
+  OVERALL STATUS: CRITICAL
+
+  Environment:
+    Python   : 3.12.1
+    Platform : Windows-11-10.0.26200-SP0
+    numpy    : 1.26.4
+    pandas   : 2.2.2
+    numba    : 0.62.1
+    statsmodels: 0.14.5
+    env_hash : 9ddc33081561
+
+=== END AUDIT LOG ===

@@ -1,0 +1,33 @@
+=== 45-Fold Stop Loss Comparison ===
+Base config: CORR25 + persistence gate + no-EOS + Z=3.0 + HL<=6d + delta=1e-7
+TC=30bps/side, borrow=50bps/yr, N_max=50, capital=$1M
+SL2pct=-$400 per trade, SL3pct=-$600 per trade, TC_exit_approx=$60
+
+Folds completed : 23 / 45
+Total trades    : 150
+SL2pct stops    : 49 (33% of trades)
+SL3pct stops    : 37 (25% of trades)
+
+--- BASELINE (no SL) ---
+  Folds  : 23
+  Mean SR: -0.516   Median: +0.000   Std: 2.947
+  % Pos  : 48%   Min: -5.64   Max: +3.88
+  Bear   : +1.357   Bull: -1.036
+
+--- SL2pct (SL=-$400/trade) ---
+  Folds  : 23
+  Mean SR: -0.867   Median: -0.490   Std: 2.408
+  % Pos  : 35%   Min: -6.42   Max: +3.69
+  Bear   : +0.410   Bull: -1.222
+
+--- SL3pct (SL=-$600/trade) ---
+  Folds  : 23
+  Mean SR: -0.750   Median: +0.000   Std: 2.782
+  % Pos  : 43%   Min: -6.22   Max: +3.69
+  Bear   : +0.945   Bull: -1.220
+
+--- Delta vs BASELINE ---
+  SL2pct: mean SR delta=-0.351  %pos delta=-13%  Bull delta=-0.185  Bear delta=-0.948
+  SL3pct: mean SR delta=-0.234  %pos delta=-4%  Bull delta=-0.184  Bear delta=-0.412
+
+Runtime: 244s (4.1 min)

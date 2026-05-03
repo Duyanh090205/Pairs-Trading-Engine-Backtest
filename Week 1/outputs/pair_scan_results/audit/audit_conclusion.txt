@@ -1,0 +1,24 @@
+AUDIT CONCLUSION
+============================================================
+
+The final red-team audit verified all critical components of the
+cointegration screening pipeline: timestamp handling, pair ordering
+consistency (coint and OLS use the same A-B convention), p-value
+extraction from statsmodels.coint(), BH-FDR multiple testing
+correction, OU-based half-life calculation, and rejection logging.
+
+Independent recomputation of 5 representative pairs (GOOG-GOOGL,
+HD-MS, LOW-MS, XOM-CVX, BAC-JPM) confirmed exact agreement with
+stored results. The BH-FDR correction at q=0.05 across 1,225 tests
+requires the k-th smallest p-value to be below k/1225 * 0.05.
+Only GOOG-GOOGL (p=0.000049) meets this threshold, and it is
+correctly eliminated by the half-life filter as a trivial
+same-company share-class pair.
+
+Of 1225 pairs tested, 42 (3.4%) had raw p < 0.05,
+consistent with the expected false positive rate under the null.
+
+The zero-approved-pairs result is a valid empirical finding under
+this methodology, not a pipeline error. The 2022 market regime
+(Fed tightening, inflation, risk-off rotation) is consistent with
+weakened mean-reversion dynamics across equity pairs.

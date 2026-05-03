@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import pandas as pd; ts = 1641220200000000000; print\\(pd.to_datetime\\(ts, unit='ns', utc=True\\)\\)\")",
+      "Bash(python -c \"import pandas as pd; ts = 1641220200000000000; print\\(pd.to_datetime\\(ts, unit='ns', utc=True\\)\\)\")",
+      "Bash(python validate_chunk1.py)",
+      "Bash(python -)",
+      "Bash(2>&1)",
+      "Bash(python validate_chunk2.py)",
+      "Bash(python validate_chunk3.py)",
+      "Bash(xargs rm:*)",
+      "Bash(python validate_chunk4.py)",
+      "Bash(python run_all_pairs_diagnostics.py)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(pip install:*)",
+      "Bash(python src/pipeline/run_week2.py)",
+      "Bash(python validate_chunk5.py)",
+      "Bash(python validate_kalman.py)",
+      "Bash(python -m pytest tests/ -q)",
+      "Bash(python -c ':*)",
+      "Bash(ls \"d:/Quant Finance/Quant Program/Week 2/week2_signal_engine/\"*.md)",
+      "Bash(claude export:*)",
+      "Bash(py --version)"
+    ]
+  }
+}

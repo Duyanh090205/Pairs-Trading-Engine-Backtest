@@ -1,0 +1,30 @@
+pairs:
+  primary: ["CMS", "DUK"]
+  secondary: ["DOW", "LYB"]
+  alternatives:
+    - ["A", "AFL"]
+    - ["AVGO", "GLD"]
+    - ["DDOG", "FOXA"]
+    - ["HD", "MS"]
+    - ["LOW", "MS"]
+    - ["DHI", "LVS"]
+  benchmarks:
+    - ["GOOG", "GOOGL"]
+  negative_controls:
+    - ["CVNA", "ISRG"]
+    - ["INTC", "JPM"]
+dates:
+  formation_start: "2022-01-01"
+  formation_end: "2022-06-30"
+  trading_start: "2022-07-01"
+  trading_end: "2022-12-31"
+
+engine:
+  min_window: 10
+  max_window: 2000        # raised from 240: window now equals the half-life (not capped)
+  default_window: 60
+  entry_z_fixed: 2.0
+  exit_z_fixed: 0.0
+  use_kalman: false       # true = Kalman dynamic beta; false = static OLS (default)
+  kalman_delta: 1.0e-5   # adaptation speed; 1e-5 = slow (~180 trading-day half-life)
+  session_open_warmup: 30 # bars to suppress z-score after each session open (0 = disabled)

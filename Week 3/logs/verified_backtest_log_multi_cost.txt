@@ -1,0 +1,333 @@
+======================================================================
+  VERIFIED BACKTEST LOG - Week 3 (Multi-Cost)
+  Run: 2026-04-20 21:51:01  |  Runtime: 259.6s
+======================================================================
+
+SECTION 1: HEADER
+----------------------------------------------------------------------
+  Formation period : 2022-01-03 to 2022-06-30
+  Trading period   : 2022-07-01 to 2022-12-30
+  Primary pair     : CMS / DUK
+  OLS alpha        : -0.695816
+  OLS beta         : 1.048794
+  Rolling window   : 677 bars
+  Z threshold      : 2.0 (default), 2.57 (sweep)
+  Session warmup   : 30 bars/day
+  Burn-in          : 338 bars (window//2)
+  Execution lag    : 1 bar (position_executed[t] = position[t-1])
+  Cost scenarios:
+    30+30 bps  conservative    entry=30bps  exit=30bps  RT=60bps
+    10+10 bps  realistic       entry=10bps  exit=10bps  RT=20bps
+    2+2  bps  low-cost         entry=2bps  exit=2bps  RT=4bps
+    0+0  bps  no-cost          entry=0bps  exit=0bps  RT=0bps
+  Kalman monthly beta map:
+    Jul: 0.764627  Aug: 0.773766  Sep: 0.754115
+    Oct: 0.757557  Nov: 0.787362  Dec: 0.778809
+  Secondary pairs:
+    DOW/LYB     alpha=-0.90572  beta=1.088981  window=774
+    GOOG/GOOGL  alpha=0.102777  beta=0.987187  window=19
+  Total bars loaded: 970,411
+
+SECTION 2: TIMESTAMP VERIFICATION
+----------------------------------------------------------------------
+  Total trades verified : 90
+  Violations (exec_ts <= signal_ts) : 0
+  Status : PASS
+  Note: position_executed[t] = position[t-1] (1-bar lag enforced throughout)
+
+SECTION 3: TRADE LOG SAMPLE (first 30 trades, Version A CMS/DUK, 30+30bps)
+----------------------------------------------------------------------
+  signal_ts                 exec_ts                   side      gross  entry_c   exit_c      net
+  -----------------------------------------------------------------------------------------------
+  2022-07-01 19:18:00+00:00 2022-07-01 19:19:00+00:00 SHORT     +47.8     30.0     30.0    -11.6
+  2022-07-05 14:01:00+00:00 2022-07-05 14:02:00+00:00 LONG      +16.6     30.0     30.0    -43.1
+  2022-07-06 19:40:00+00:00 2022-07-06 19:41:00+00:00 SHORT     +25.5     30.0     30.0    -34.4
+  2022-07-07 14:29:00+00:00 2022-07-07 14:30:00+00:00 SHORT     +19.4     30.0     30.0    -40.6
+  2022-07-07 17:37:00+00:00 2022-07-07 17:38:00+00:00 LONG      +18.2     30.0     30.0    -41.7
+  2022-07-11 14:23:00+00:00 2022-07-11 14:24:00+00:00 LONG      -57.6     30.0     30.0   -117.7
+  2022-07-13 19:47:00+00:00 2022-07-13 19:48:00+00:00 SHORT      +6.0     30.0     30.0    -53.9
+  2022-07-15 14:12:00+00:00 2022-07-15 14:13:00+00:00 SHORT     +32.6     30.0     30.0    -27.2
+  2022-07-18 14:04:00+00:00 2022-07-18 14:05:00+00:00 LONG      +27.6     30.0     30.0    -32.2
+  2022-07-20 14:00:00+00:00 2022-07-20 14:01:00+00:00 SHORT     +10.3     30.0     30.0    -49.4
+  2022-07-26 14:00:00+00:00 2022-07-26 14:01:00+00:00 LONG      +12.6     30.0     30.0    -47.4
+  2022-07-26 19:57:00+00:00 2022-07-26 19:58:00+00:00 SHORT      +8.9     30.0     30.0    -50.9
+  2022-07-27 14:28:00+00:00 2022-07-27 14:29:00+00:00 SHORT     -16.7     30.0     30.0    -77.6
+  2022-08-01 19:55:00+00:00 2022-08-01 19:56:00+00:00 SHORT      +8.6     30.0     30.0    -51.6
+  2022-08-02 19:40:00+00:00 2022-08-02 19:41:00+00:00 SHORT     +18.8     30.0     30.0    -40.5
+  2022-08-03 16:28:00+00:00 2022-08-03 16:29:00+00:00 LONG       -1.2     30.0     30.0    -61.4
+  2022-08-05 19:46:00+00:00 2022-08-05 19:47:00+00:00 LONG      +30.8     30.0     30.0    -29.3
+  2022-08-08 19:42:00+00:00 2022-08-08 19:43:00+00:00 SHORT     +18.3     30.0     30.0    -42.0
+  2022-08-10 16:10:00+00:00 2022-08-10 16:11:00+00:00 LONG      +31.2     30.0     30.0    -28.8
+  2022-08-11 14:15:00+00:00 2022-08-11 14:16:00+00:00 SHORT     -11.6     30.0     30.0    -71.9
+  2022-08-15 15:41:00+00:00 2022-08-15 15:42:00+00:00 SHORT     +16.1     30.0     30.0    -44.1
+  2022-08-16 14:59:00+00:00 2022-08-16 15:00:00+00:00 LONG       -7.6     30.0     30.0    -67.7
+  2022-08-18 14:00:00+00:00 2022-08-18 14:01:00+00:00 LONG      +22.2     30.0     30.0    -37.7
+  2022-08-22 16:46:00+00:00 2022-08-22 16:47:00+00:00 SHORT      +8.0     30.0     30.0    -52.0
+  2022-08-22 19:26:00+00:00 2022-08-22 19:27:00+00:00 LONG       -3.5     30.0     30.0    -63.1
+  2022-08-24 18:53:00+00:00 2022-08-24 18:54:00+00:00 SHORT     -60.1     30.0     30.0   -119.7
+  2022-08-31 14:00:00+00:00 2022-08-31 14:01:00+00:00 LONG      +33.7     30.0     30.0    -26.1
+  2022-09-01 14:57:00+00:00 2022-09-01 14:58:00+00:00 LONG      +19.9     30.0     30.0    -40.4
+  2022-09-02 14:05:00+00:00 2022-09-02 14:06:00+00:00 LONG      +32.1     30.0     30.0    -27.8
+  2022-09-06 14:01:00+00:00 2022-09-06 14:02:00+00:00 SHORT      +4.3     30.0     30.0    -56.3
+  ... (60 more trades not shown)
+
+SECTION 4: SHARPE SENSITIVITY TABLE
+----------------------------------------------------------------------
+  --- 30+30 bps  conservative (60bps RT) ---
+  CMS_DUK (CMS/DUK) Clean=-22.3859
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1       -18.791   -17.090   -17.382   -17.053   -14.331   -14.259
+  H2       -20.306   -18.983   -16.219   -14.212   -12.394   -12.008
+  H3       -21.336   -21.372   -21.477   -20.459   -19.648   -19.373
+  H4        +0.381    +0.381    +0.381    +0.381    +0.381    +0.905
+
+  DOW_LYB (DOW/LYB) Clean=-12.1328
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1        -9.766    -9.179    -5.921    -5.131    -4.860    -2.340
+  H2       -10.454    -9.157    -7.500    -5.694    -5.305    -5.182
+  H3       -12.133   -12.133   -12.133   -12.133   -12.133   -12.133
+  H4       -12.133   -12.133   -12.133    +0.000   -12.133   -12.133
+
+  GOOG_GOOGL (GOOG/GOOGL) Clean=-103.7476
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1      -105.276  -100.892   -99.604    -0.572    -0.488    -3.058
+  H2      -104.405   -90.981   -86.234   -78.817   -74.789   -87.094
+  H3      -103.748  -103.748  -103.748  -103.748  -103.748  -103.748
+  H4      -103.748  -103.748  -103.748  -103.748    -4.556    -4.556
+
+  --- 10+10 bps  realistic (20bps RT) ---
+  CMS_DUK (CMS/DUK) Clean=-3.7493
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1        -2.498    -1.523    +0.660    +1.802    +1.497    +2.219
+  H2        -3.456    -2.777    -1.530    -1.228    -0.604    -0.243
+  H3        -3.751    -3.806    -4.119    -4.674    -3.957    -4.244
+  H4        +0.385    +0.385    +0.385    +0.385    +0.385    +0.913
+
+  DOW_LYB (DOW/LYB) Clean=-2.2560
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1        -1.133    -0.269    +1.329    +4.275    +2.674    +5.193
+  H2        -1.552    -0.908    -0.257    +0.046    +0.178    +0.288
+  H3        -2.256    -2.256    -2.256    -2.256    -2.256    -2.256
+  H4        -2.256    -2.256    -2.256    +0.000    -2.256    -2.256
+
+  GOOG_GOOGL (GOOG/GOOGL) Clean=-95.1385
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1       -66.595   -75.280   -57.044    +0.975    +1.027    -1.650
+  H2       -91.353   -79.693   -66.288   -56.364   -56.018   -65.700
+  H3       -95.138   -95.138   -95.138   -95.138   -95.138   -95.138
+  H4       -95.138   -95.138   -95.138   -95.138    -3.912    -3.912
+
+  --- 2+2  bps  low-cost (4bps RT) ---
+  CMS_DUK (CMS/DUK) Clean=+4.6831
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1        +5.164    +4.956    +6.992    +8.130    +6.874    +8.034
+  H2        +4.490    +4.607    +4.616    +4.387    +3.856    +3.935
+  H3        +4.700    +4.656    +4.411    +4.072    +3.667    +3.431
+  H4        +0.387    +0.387    +0.387    +0.387    +0.387    +0.916
+
+  DOW_LYB (DOW/LYB) Clean=+1.3572
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1        +2.071    +2.833    +3.968    +7.317    +5.105    +7.688
+  H2        +1.556    +1.907    +2.108    +1.962    +1.994    +2.089
+  H3        +1.357    +1.357    +1.357    +1.357    +1.357    +1.357
+  H4        +1.357    +1.357    +1.357    +0.000    +1.357    +1.357
+
+  GOOG_GOOGL (GOOG/GOOGL) Clean=-26.9738
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1        +3.035   +14.926   +18.255    +1.595    +1.632    -1.087
+  H2        +1.324   +16.494   +24.675   +26.489   +28.765   +27.625
+  H3       -26.974   -26.974   -26.974   -26.974   -26.974   -26.974
+  H4       -26.974   -26.974   -26.974   -26.974    +4.502    +4.502
+
+  --- 0+0  bps  no-cost (0bps RT) ---
+  CMS_DUK (CMS/DUK) Clean=+6.2796
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1        +6.687    +6.256    +8.227    +9.295    +7.969    +9.151
+  H2        +6.009    +6.027    +5.845    +5.526    +4.788    +4.802
+  H3        +6.323    +6.282    +6.051    +5.777    +5.190    +4.966
+  H4        +0.387    +0.387    +0.387    +0.387    +0.387    +0.917
+
+  DOW_LYB (DOW/LYB) Clean=+2.1400
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1        +2.781    +3.513    +4.570    +7.970    +5.642    +8.243
+  H2        +2.242    +2.532    +2.630    +2.395    +2.404    +2.492
+  H3        +2.140    +2.140    +2.140    +2.140    +2.140    +2.140
+  H4        +2.140    +2.140    +2.140    +0.000    +2.140    +2.140
+
+  GOOG_GOOGL (GOOG/GOOGL) Clean=+15.3984
+  Method      k=5%     k=10%     k=20%     k=30%     k=40%     k=50%
+  ------------------------------------------------------------------
+  H1       +24.051   +43.186   +37.320    +1.750    +1.784    -0.946
+  H2       +42.926   +49.800   +49.862   +48.140   +50.438   +50.770
+  H3       +15.398   +15.398   +15.398   +15.398   +15.398   +15.398
+  H4       +15.398   +15.398   +15.398   +15.398    +4.547    +4.547
+
+  Note: H3 for DOW/LYB and GOOG/GOOGL is flat — spread_biased column only
+        exists for CMS/DUK rows (pair-specific bias by design).
+
+SECTION 5: VERSION A vs VERSION B — CMS/DUK clean, all cost scenarios
+----------------------------------------------------------------------
+  [30+30 bps  conservative | 60bps RT]
+  Metric                    Version A    Version B        Delta
+  ------------------------------------------------------------
+  Sharpe                     -22.3859     -17.9027      +4.4831
+  Max Drawdown                -0.3421      -0.3389      +0.0032
+  CAGR                        -0.5662      -0.5620      +0.0041
+  Calmar                      -1.6550      -1.6586      -0.0036
+  Win Rate                     0.0222       0.0333      +0.0111
+  Avg Gross (bps)             13.7469      14.2250      +0.4781
+  N Trades                         90           90           +0
+
+  [10+10 bps  realistic | 20bps RT]
+  Metric                    Version A    Version B        Delta
+  ------------------------------------------------------------
+  Sharpe                      -3.7493      -2.4884      +1.2609
+  Max Drawdown                -0.0591      -0.0562      +0.0029
+  CAGR                        -0.1090      -0.1005      +0.0084
+  Calmar                      -1.8434      -1.7897      +0.0537
+  Win Rate                     0.4000       0.4111      +0.0111
+  Avg Gross (bps)             13.7469      14.2250      +0.4781
+  N Trades                         90           90           +0
+
+  [2+2  bps  low-cost | 4bps RT]
+  Metric                    Version A    Version B        Delta
+  ------------------------------------------------------------
+  Sharpe                       4.6831       3.8462      -0.8369
+  Max Drawdown                -0.0127      -0.0144      -0.0017
+  CAGR                         0.1873       0.1985      +0.0112
+  Calmar                      14.7941      13.8077      -0.9865
+  Win Rate                     0.7667       0.7556      -0.0111
+  Avg Gross (bps)             13.7469      14.2250      +0.4781
+  N Trades                         90           90           +0
+
+  [0+0  bps  no-cost | 0bps RT]
+  Metric                    Version A    Version B        Delta
+  ------------------------------------------------------------
+  Sharpe                       6.2796       5.1712      -1.1084
+  Max Drawdown                -0.0113      -0.0134      -0.0021
+  CAGR                         0.2755       0.2875      +0.0120
+  Calmar                      24.3125      21.4745      -2.8380
+  Win Rate                     0.8111       0.8000      -0.0111
+  Avg Gross (bps)             13.7469      14.2250      +0.4781
+  N Trades                         90           90           +0
+
+SECTION 6: COMPARATIVE ANALYSIS
+----------------------------------------------------------------------
+
+  6b. Engine-level Execution Lag (CMS/DUK):
+  lag  Variant                              Sharpe(30+30 bps  conservative)  Sharpe(10+10 bps  realistic)  Sharpe(2+2  bps  low-cost)  Sharpe(0+0  bps  no-cost)  Trades
+  ----------------------------------------------------------------------------------------------------------------------------------
+    Y  Clean engine + clean data                        -22.3859               -3.7493               +4.6831               +6.2796      90
+    Y  Clean engine + H1 k=50%                          -14.2590               +2.2192               +8.0345               +9.1513     125
+    Y  Clean engine + H3 k=50%                          -19.3734               -4.2436               +3.4309               +4.9658      93
+    N  Biased engine + clean data                       -23.2341               -7.1112               +2.0818               +3.9290      90
+    N  Biased engine + H1 k=50%                         -17.3827               -6.9399               +0.1313               +1.8668     125
+
+  6d. Z-threshold Sensitivity (CMS/DUK clean):
+       Z  Trades  Sharpe(30+30 bps  conservative)  Sharpe(10+10 bps  realistic)  Sharpe(2+2  bps  low-cost)  Sharpe(0+0  bps  no-cost)
+  --------------------------------------------------------------------------------------------------------------
+    2.00      90                -22.3859                 -3.7493                 +4.6831                 +6.2796
+    2.57      51                -13.5104                 -1.4892                 +4.0569                 +5.1516
+
+  6e. Negative Controls (clean data, formation OLS):
+  Pair            alpha     beta    win  Sharpe(30+30 bps  conservative)  Sharpe(10+10 bps  realistic)  Sharpe(2+2  bps  low-cost)  Sharpe(0+0  bps  no-cost)  Trades
+  ------------------------------------------------------------------------------------------------------------------------------------
+  CVNA/ISRG    -20.2311   4.4245   1755                 -3.5678                 -2.6794                 -2.3327                 -2.2469      27
+  INTC/JPM      -0.0139   0.7842   2000                 -1.4012                 -0.0363                 +0.4654                 +0.5866      22
+
+SECTION 6.5: DATA SANITY AUDIT (CP6f - assertion-level detection)
+----------------------------------------------------------------------
+  Detects flawed files from the data itself (no backtest needed).
+  Checks: OHLC consistency | ts duplicates | ts session | strict column schema
+
+  File                     OHLC  TSdup  TSsess  Schema   Verdict
+  ----------------------------------------------------------------
+  clean                    ok     ok      ok      ok     [clean]
+  flawed_h1_k5            FAIL    ok      ok      ok     FLAGGED
+  flawed_h1_k10           FAIL    ok      ok      ok     FLAGGED
+  flawed_h1_k20           FAIL    ok      ok      ok     FLAGGED
+  flawed_h1_k30           FAIL    ok      ok      ok     FLAGGED
+  flawed_h1_k40           FAIL    ok      ok      ok     FLAGGED
+  flawed_h1_k50           FAIL    ok      ok      ok     FLAGGED
+  flawed_h2_k5             ok    FAIL     ok      ok     FLAGGED
+  flawed_h2_k10            ok    FAIL     ok      ok     FLAGGED
+  flawed_h2_k20            ok    FAIL     ok      ok     FLAGGED
+  flawed_h2_k30            ok    FAIL     ok      ok     FLAGGED
+  flawed_h2_k40            ok    FAIL     ok      ok     FLAGGED
+  flawed_h2_k50            ok    FAIL     ok      ok     FLAGGED
+  flawed_h3_k5             ok     ok      ok     FAIL    FLAGGED
+  flawed_h3_k10            ok     ok      ok     FAIL    FLAGGED
+  flawed_h3_k20            ok     ok      ok     FAIL    FLAGGED
+  flawed_h3_k30            ok     ok      ok     FAIL    FLAGGED
+  flawed_h3_k40            ok     ok      ok     FAIL    FLAGGED
+  flawed_h3_k50            ok     ok      ok     FAIL    FLAGGED
+  flawed_h4_k5            FAIL    ok      ok      ok     FLAGGED
+  flawed_h4_k10           FAIL    ok      ok      ok     FLAGGED
+  flawed_h4_k20           FAIL    ok      ok      ok     FLAGGED
+  flawed_h4_k30           FAIL    ok      ok      ok     FLAGGED
+  flawed_h4_k40           FAIL    ok      ok      ok     FLAGGED
+  flawed_h4_k50           FAIL    ok      ok      ok     FLAGGED
+
+  Detection coverage: 24/24 flawed files caught by at least one check.
+  Per-check failing row counts:
+    flawed_h1_k5           ohlc=27255
+    flawed_h1_k10          ohlc=54645
+    flawed_h1_k20          ohlc=110016
+    flawed_h1_k30          ohlc=166534
+    flawed_h1_k40          ohlc=224837
+    flawed_h1_k50          ohlc=283476
+    flawed_h2_k5           ts_dup=45610
+    flawed_h2_k10          ts_dup=86422
+    flawed_h2_k20          ts_dup=153827
+    flawed_h2_k30          ts_dup=201926
+    flawed_h2_k40          ts_dup=231019
+    flawed_h2_k50          ts_dup=240687
+    flawed_h3_k5           schema(extra=['spread_biased'],missing=[])
+    flawed_h3_k10          schema(extra=['spread_biased'],missing=[])
+    flawed_h3_k20          schema(extra=['spread_biased'],missing=[])
+    flawed_h3_k30          schema(extra=['spread_biased'],missing=[])
+    flawed_h3_k40          schema(extra=['spread_biased'],missing=[])
+    flawed_h3_k50          schema(extra=['spread_biased'],missing=[])
+    flawed_h4_k5           ohlc=96972
+    flawed_h4_k10          ohlc=96972
+    flawed_h4_k20          ohlc=193440
+    flawed_h4_k30          ohlc=291865
+    flawed_h4_k40          ohlc=386376
+    flawed_h4_k50          ohlc=482633
+
+  Caveat: H3 detection depends on the extra 'spread_biased' column
+          (schema check). An in-place H3 injection would evade all 4
+          checks because raw OHLC stays valid. Real H3-type bias
+          (leaky features in derived data) needs re-computation, not
+          data assertions.
+
+SECTION 7: AUDIT TRAIL
+----------------------------------------------------------------------
+  Parameter source   : scripts/verify_params.py  (ALL CHECKS PASSED)
+  Data source        : data/raw/  (2510 files, 970,411 session-filtered bars)
+  Flawed datasets    : data/flawed/  (20 files, generated by deliverable1.py)
+  Signal engine      : scripts/engine.py
+  Week 2 imports     : src.signals.zscore, state_machine, kalman
+  Execution lag      : position_executed[t] = position[t-1] (use_lag=True)
+  Exit cost fix      : exit notional = prev_notional (shift(1)) at exit bar
+  PnL formula        : bar_pnl = shares_a*close_a.diff() + shares_b*close_b.diff()
+  Ref notional       : mean(|shares_a|*pa + |shares_b|*pb) at entry bars
+  Sharpe formula     : mean(daily_return) / std(daily_return, ddof=1) * sqrt(252)
+  Cost independence  : signals/sizings precomputed once; PnL looped per scenario
+
+  No red flags raised on any dataset.
+
+======================================================================
+  END OF VERIFIED BACKTEST LOG
+======================================================================

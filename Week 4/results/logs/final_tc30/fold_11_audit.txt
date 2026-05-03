@@ -1,0 +1,102 @@
+=== FOLD 11 AUDIT LOG ===
+Generated: 2026-05-03 00:53:28
+
+[1] PARAMETER HASH
+config_hash   = 862bfea33c200be0
+  fold                     = 11
+  formation_start          = 2022-11-01
+  formation_end            = 2023-04-30
+  trading_month            = 2023-05
+  delta                    = 1e-07
+  entry_z                  = 3.0
+  tc_bps                   = 30
+  borrow_bps_yr            = 50
+  n_open_pairs_max         = 50
+  eos_flatten              = False
+  hl_max_days              = 6.0
+  corr25_thresh            = 0.25
+
+[2] KALMAN DELTA + MULTI-CRITERION METRICS
+  Selected delta: 1e-07
+  WARNING: delta at grid boundary
+  Grid results:
+
+[3] TRADE LOG SAMPLE (first 20 trades)
+  entry_ts                 exit_ts                   dir   bars  gross_bps    net_bps exit_reason
+  2023-05-04 10:02:00-04:00 2023-05-08 10:56:00-04:00   -1    832      165.1      113.8 zero_cross
+  2023-05-05 10:20:00-04:00 2023-05-10 15:23:00-04:00   -1   1373      -11.5      -74.2 zero_cross
+  2023-05-26 10:28:00-04:00 2023-05-31 10:06:00-04:00    1    702      -28.7     -105.3 zero_cross
+  2023-05-24 12:11:00-04:00 2023-05-25 15:01:00-04:00    1    431      226.5      177.5 zero_cross
+  2023-05-02 10:01:00-04:00 2023-05-15 10:03:00-04:00    1   3360       34.4      -12.9 zero_cross
+  2023-05-25 12:34:00-04:00 2023-05-31 15:59:00-04:00   -1   1008      -61.8     -128.7 end_of_window
+  2023-05-25 10:04:00-04:00 2023-05-31 15:59:00-04:00   -1   1161        7.6     -275.5 end_of_window
+  2023-05-04 10:37:00-04:00 2023-05-09 10:01:00-04:00   -1   1134      394.3      304.1 zero_cross
+  2023-05-25 10:02:00-04:00 2023-05-31 15:56:00-04:00    1   1115      253.2      181.3 eos
+  2023-05-24 10:03:00-04:00 2023-05-24 15:33:00-04:00   -1    327      157.9       94.4 zero_cross
+  2023-05-04 10:08:00-04:00 2023-05-25 13:28:00-04:00   -1   4835    -1052.4    -1097.3 zero_cross
+  2023-05-10 10:20:00-04:00 2023-05-12 13:46:00-04:00   -1    883       52.9      -19.5 zero_cross
+  2023-05-26 10:56:00-04:00 2023-05-31 10:11:00-04:00    1    663       59.7      -11.5 zero_cross
+  2023-05-25 13:12:00-04:00 2023-05-30 10:48:00-04:00   -1    625      239.3      196.2 zero_cross
+  2023-05-24 10:23:00-04:00 2023-05-26 10:30:00-04:00    1    689      308.1      188.8 zero_cross
+  2023-05-25 10:02:00-04:00 2023-05-31 15:59:00-04:00    1   1168      -12.7      -73.8 end_of_window
+  2023-05-04 10:01:00-04:00 2023-05-08 14:36:00-04:00    1   1050      152.0      101.7 zero_cross
+  2023-05-23 10:26:00-04:00 2023-05-31 15:59:00-04:00    1   2193     -220.0     -276.7 end_of_window
+
+[4] COMPARATIVE METRICS
+  Primary Sharpe  : -1.4170
+  MaxDD (bar)     : -0.0052
+  CAGR            : -0.0173
+  Calmar          : -3.3351
+  Win Rate        : 44.44%
+  N Trades        : 18
+  Avg Hold (bars) : 1308.3
+  Avg Net (bps)   : -39.87
+  Cost commission : $2,745.86
+  Cost borrow     : $10.58
+  Cost rebalance  : $6.30
+  NC empirical Sharpe  : None
+  NC synthetic Sharpe  : -1.0031
+  NC bootstrap mean+2sd: 15.1528
+  NC PASS              : False
+  NC source            : synthetic
+  Latency sweep:
+       t+1  Sharpe=-1.4170
+       t+2  Sharpe=-1.7182
+       t+5  Sharpe=-2.9632
+      t+10  Sharpe=-2.8572
+    random  Sharpe=-1.7182
+  Latency pass: False
+
+[5] TIMESTAMP VERIFICATION PROOF
+  Total trades              : 18
+  exec_ts > signal_ts (100%): True
+  LOOKAHEAD STATUS          : PASS
+
+[6] NEGATIVE CONTROL BOOTSTRAP
+  Bootstrap Sharpes (N=1000): mean=0.3560  std=7.3984
+  Threshold (mean+2sd)       : 15.1528
+  Primary Sharpe             : -1.4170
+  Bootstrap pct > 0          : 44.4%
+  NC PASS                    : False
+  Discrimination STATUS      : FAIL
+
+[7] RED FLAG STATUS + ENVIRONMENT HASH
+  [OK     ] Lookahead leak (Sharpe>5 or pos mismatch): False
+  [ERROR  ] NC discrimination fail: True
+  [OK     ] Kalman spread degenerate: False
+  [WARNING] Delta at grid boundary: True
+  [OK     ] Delta instability (>2 steps): False
+  [OK     ] Universal constraint fail (no delta): False
+
+  OVERALL STATUS: CRITICAL
+
+  Environment:
+    Python   : 3.12.1
+    Platform : Windows-11-10.0.26200-SP0
+    numpy    : 1.26.4
+    pandas   : 2.2.2
+    numba    : 0.62.1
+    statsmodels: 0.14.5
+    env_hash : 9ddc33081561
+
+=== END AUDIT LOG ===

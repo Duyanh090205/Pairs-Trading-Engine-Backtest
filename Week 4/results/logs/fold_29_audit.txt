@@ -1,0 +1,107 @@
+=== FOLD 29 AUDIT LOG ===
+Generated: 2026-05-03 00:20:08
+
+[1] PARAMETER HASH
+config_hash   = 14f1efe288171931
+  fold                     = 29
+  formation_start          = 2024-05-01
+  formation_end            = 2024-10-31
+  trading_month            = 2024-11
+  delta                    = 1e-07
+  entry_z                  = 2.0
+  tc_bps                   = 30
+  borrow_bps_yr            = 50
+  n_open_pairs_max         = 50
+
+[2] KALMAN DELTA + MULTI-CRITERION METRICS
+  Selected delta: 1e-07
+  WARNING: delta at grid boundary
+  Grid results:
+    delta=1e-07  kurt_dev= 0.549  HL=  2.12d  ACF78=0.736 [FEASIBLE] <-- SELECTED
+    delta=1e-06  kurt_dev= 1.258  HL=  1.13d  ACF78=0.536
+    delta=1e-05  kurt_dev= 4.623  HL=  0.48d  ACF78=0.209
+    delta=1e-04  kurt_dev=13.768  HL=  0.17d  ACF78=0.041
+    delta=1e-03  kurt_dev=31.860  HL=  0.06d  ACF78=0.026
+
+[3] TRADE LOG SAMPLE (first 20 trades)
+  entry_ts                 exit_ts                   dir   bars  gross_bps    net_bps exit_reason
+  2024-11-07 10:44:00-05:00 2024-11-07 15:56:00-05:00    1    305       53.6       -6.0 eos
+  2024-11-08 09:32:00-05:00 2024-11-08 15:56:00-05:00    1    331       -6.4      -66.2 eos
+  2024-11-11 09:31:00-05:00 2024-11-11 10:03:00-05:00    1     30        2.8      -56.8 zero_cross
+  2024-11-25 12:09:00-05:00 2024-11-25 15:56:00-05:00   -1    214       59.4       -0.0 eos
+  2024-11-26 09:31:00-05:00 2024-11-26 15:56:00-05:00   -1    340      -95.5     -154.7 eos
+  2024-11-27 09:31:00-05:00 2024-11-27 15:56:00-05:00   -1    346      -54.9     -113.8 eos
+  2024-11-29 09:31:00-05:00 2024-11-29 13:00:00-05:00   -1    196        4.7      -54.4 end_of_window
+  2024-11-06 10:01:00-05:00 2024-11-06 15:56:00-05:00    1    341     -200.9     -259.3 eos
+  2024-11-07 09:31:00-05:00 2024-11-07 15:56:00-05:00    1    344      149.2       90.5 eos
+  2024-11-08 09:31:00-05:00 2024-11-08 10:29:00-05:00    1     56       46.1      -12.1 zero_cross
+  2024-11-15 10:18:00-05:00 2024-11-15 15:56:00-05:00    1    331      -15.3      -73.4 eos
+  2024-11-18 09:31:00-05:00 2024-11-18 15:56:00-05:00    1    346        1.8      -56.5 eos
+  2024-11-19 09:32:00-05:00 2024-11-19 10:03:00-05:00    1     30       56.7       -1.5 zero_cross
+  2024-11-19 10:09:00-05:00 2024-11-19 15:56:00-05:00   -1    328      -41.4      -99.9 eos
+  2024-11-20 09:31:00-05:00 2024-11-20 13:48:00-05:00   -1    242      111.7       53.7 zero_cross
+  2024-11-06 12:39:00-05:00 2024-11-06 15:56:00-05:00   -1    190       28.1      -39.0 eos
+  2024-11-07 09:31:00-05:00 2024-11-07 10:01:00-05:00   -1     30       88.5       21.8 zero_cross
+  2024-11-08 10:38:00-05:00 2024-11-08 15:56:00-05:00    1    292      -23.5      -90.6 eos
+  2024-11-11 09:31:00-05:00 2024-11-11 15:56:00-05:00    1    363      -50.6     -117.1 eos
+  2024-11-12 09:31:00-05:00 2024-11-12 15:56:00-05:00    1    376       -3.2      -69.6 eos
+  ... (321 more trades not shown)
+
+[4] COMPARATIVE METRICS
+  Primary Sharpe  : -9.2059
+  MaxDD (bar)     : -0.0535
+  CAGR            : -0.4545
+  Calmar          : -8.4939
+  Win Rate        : 24.34%
+  N Trades        : 341
+  Avg Hold (bars) : 271.0
+  Avg Net (bps)   : -66.80
+  Cost commission : $55,596.67
+  Cost borrow     : $0.00
+  Cost rebalance  : $28.93
+  NC empirical Sharpe  : None
+  NC synthetic Sharpe  : -6.3922
+  NC bootstrap mean+2sd: 6.3550
+  NC PASS              : False
+  NC source            : synthetic
+  Latency sweep:
+       t+1  Sharpe=-9.2059
+       t+2  Sharpe=-10.5379
+       t+5  Sharpe=-11.2836
+      t+10  Sharpe=-9.4206
+    random  Sharpe=-10.5379
+  Latency pass: False
+
+[5] TIMESTAMP VERIFICATION PROOF
+  Total trades              : 341
+  exec_ts > signal_ts (100%): True
+  LOOKAHEAD STATUS          : PASS
+
+[6] NEGATIVE CONTROL BOOTSTRAP
+  Bootstrap Sharpes (N=1000): mean=-7.6739  std=7.0145
+  Threshold (mean+2sd)       : 6.3550
+  Primary Sharpe             : -9.2059
+  Bootstrap pct > 0          : 9.5%
+  NC PASS                    : False
+  Discrimination STATUS      : FAIL
+
+[7] RED FLAG STATUS + ENVIRONMENT HASH
+  [OK     ] Lookahead leak (Sharpe>5 or pos mismatch): False
+  [ERROR  ] NC discrimination fail: True
+  [WARNING] Kalman spread degenerate: True
+  [WARNING] Delta at grid boundary: True
+  [OK     ] Delta instability (>2 steps): False
+  [OK     ] Universal constraint fail (no delta): False
+
+  OVERALL STATUS: CRITICAL
+
+  Environment:
+    Python   : 3.12.1
+    Platform : Windows-11-10.0.26200-SP0
+    numpy    : 1.26.4
+    pandas   : 2.2.2
+    numba    : 0.62.1
+    statsmodels: 0.14.5
+    env_hash : 9ddc33081561
+
+=== END AUDIT LOG ===

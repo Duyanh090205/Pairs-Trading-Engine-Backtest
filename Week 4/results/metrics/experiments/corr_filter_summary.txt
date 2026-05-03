@@ -1,0 +1,28 @@
+
+=== CORR Filter: Formation 5-min Returns Correlation Floor ===
+Base: persistence gate + no-EOS + Z=3.0 + HL<=6d + delta=1e-7
+TC=30bps/side, borrow=50bps/yr, N_max=50, capital=$1M
+
+CORR25 (primary -- corr >= 0.25):
+  Folds: 23 / 45
+  Trades: 150
+  Mean SR: -0.516
+  Median SR: +0.000
+  % Positive: 48%
+  Bear: +1.357
+  Bull: -1.036
+
+CORR30 (secondary -- corr >= 0.30):
+  Folds: 21 / 45
+  Trades: 122
+  Mean SR: -0.284
+  Median SR: +0.129
+  % Positive: 57%
+  Bear: +2.262
+  Bull: -0.708
+
+Reference:
+  Option A baseline (45 folds): mean=-0.580, pos=36%
+  Diagnostic delta (14 folds): CORR25=+0.84, CORR30=+0.86 vs baseline
+
+Runtime: 252s (4.2 min)

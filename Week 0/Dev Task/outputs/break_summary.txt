@@ -1,0 +1,30 @@
+1987 CRASH MARKET -- MARKET BREAK DETECTION ANALYSIS
+================================================================================
+
+EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+Selected Market Break: October 19, 1987 at 09:42
+Detection Method: 30-min window (multivariate PELT changepoint, robust)
+Definition: Structural regime shift in microstructure (via PELT changepoint)
+
+METHODOLOGY
+--------------------------------------------------------------------------------
+1. FEATURE ENGINEERING:
+   - Staleness, Serial Dependence (autocorr), Jump-Share
+
+2. GAP-AWARE RETURNS: halted periods skipped, session boundaries respected
+
+3. CHANGEPOINT DETECTION: PELT on standardised multivariate feature array
+
+SENSITIVITY ANALYSIS
+--------------------------------------------------------------------------------
+  15-min window:  Oct 19, 09:43
+  30-min window:  Oct 19, 09:42 [SELECTED]
+
+DATA CONSTRAINTS & LIMITATIONS
+--------------------------------------------------------------------------------
+* Source: minute-by-minute S&P 500 Futures, Oct 16-21 1987
+* Halted periods: 60 mins Oct 19, 90 mins Oct 20 (not forward-filled)
+* Cannot directly measure cash basis, bid-ask spreads, or volume
+
+================================================================================

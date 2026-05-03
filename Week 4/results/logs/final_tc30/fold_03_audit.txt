@@ -1,0 +1,84 @@
+=== FOLD 03 AUDIT LOG ===
+Generated: 2026-05-03 00:52:36
+
+[1] PARAMETER HASH
+config_hash   = e17c38060179d3e0
+  fold                     = 3
+  formation_start          = 2022-03-01
+  formation_end            = 2022-08-31
+  trading_month            = 2022-09
+  delta                    = 1e-07
+  entry_z                  = 3.0
+  tc_bps                   = 30
+  borrow_bps_yr            = 50
+  n_open_pairs_max         = 50
+  eos_flatten              = False
+  hl_max_days              = 6.0
+  corr25_thresh            = 0.25
+
+[2] KALMAN DELTA + MULTI-CRITERION METRICS
+  Selected delta: 1e-07
+  WARNING: delta at grid boundary
+  Grid results:
+
+[3] TRADE LOG SAMPLE (first 20 trades)
+  No trades this fold.
+
+[4] COMPARATIVE METRICS
+  Primary Sharpe  : 0.0000
+  MaxDD (bar)     : 0.0000
+  CAGR            : 0.0000
+  Calmar          : 0.0000
+  Win Rate        : 0.00%
+  N Trades        : 0
+  Avg Hold (bars) : 0.0
+  Avg Net (bps)   : 0.00
+  Cost commission : $0.00
+  Cost borrow     : $0.00
+  Cost rebalance  : $0.00
+  NC empirical Sharpe  : None
+  NC synthetic Sharpe  : -3.7366
+  NC bootstrap mean+2sd: 6.5138
+  NC PASS              : False
+  NC source            : synthetic
+  Latency sweep:
+       t+1  Sharpe=0.0000
+       t+2  Sharpe=0.0000
+       t+5  Sharpe=0.0000
+      t+10  Sharpe=0.0000
+    random  Sharpe=0.0000
+  Latency pass: False
+
+[5] TIMESTAMP VERIFICATION PROOF
+  Total trades              : 0
+  exec_ts > signal_ts (100%): True
+  LOOKAHEAD STATUS          : PASS
+
+[6] NEGATIVE CONTROL BOOTSTRAP
+  Bootstrap Sharpes (N=1000): mean=-4.0991  std=5.3065
+  Threshold (mean+2sd)       : 6.5138
+  Primary Sharpe             : 0.0000
+  Bootstrap pct > 0          : 20.3%
+  NC PASS                    : False
+  Discrimination STATUS      : FAIL
+
+[7] RED FLAG STATUS + ENVIRONMENT HASH
+  [OK     ] Lookahead leak (Sharpe>5 or pos mismatch): False
+  [ERROR  ] NC discrimination fail: True
+  [OK     ] Kalman spread degenerate: False
+  [WARNING] Delta at grid boundary: True
+  [OK     ] Delta instability (>2 steps): False
+  [OK     ] Universal constraint fail (no delta): False
+
+  OVERALL STATUS: CRITICAL
+
+  Environment:
+    Python   : 3.12.1
+    Platform : Windows-11-10.0.26200-SP0
+    numpy    : 1.26.4
+    pandas   : 2.2.2
+    numba    : 0.62.1
+    statsmodels: 0.14.5
+    env_hash : 9ddc33081561
+
+=== END AUDIT LOG ===

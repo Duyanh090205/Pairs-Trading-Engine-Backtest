@@ -1,0 +1,41 @@
+=== Fix A: Formation Spread-Trend Filter ===
+norm_slope = slope_per_bar * N_last_bars / std(spread_full_formation)
+Last-30d window (2340 5-min bars), static PCA spread
+FixA1 tau=1.0  (reject if |norm_slope| > 1.0)
+FixA2 tau=1.5  (reject if |norm_slope| > 1.5)
+Base: CORR25 + persistence gate + no-EOS + Z=3.0 + HL<=6d + delta=1e-7
+
+Folds completed   : 23 / 45
+Trade count       : CORR25=150  FixA1=95  FixA2=120
+
+--- CORR25 (baseline) ---
+  Folds   : 21
+  Mean SR : -0.565   Median: +0.028
+  % Pos   : 52%
+  Bear    : +2.262   Bull: -1.036
+
+--- CORR25 + Fix A (tau=1.0) ---
+  Folds   : 18
+  Mean SR : -0.926   Median: -1.253
+  % Pos   : 33%
+  Bear    : +1.165   Bull: -1.344
+
+--- CORR25 + Fix A (tau=1.5) ---
+  Folds   : 20
+  Mean SR : -0.999   Median: -0.910
+  % Pos   : 45%
+  Bear    : +1.381   Bull: -1.419
+
+--- Delta (Fix A1 vs CORR25) ---
+  Mean SR : -0.361
+  % Pos   : -19%
+  Bull SR : -0.308
+  Bear SR : -1.096
+
+--- Delta (Fix A2 vs CORR25) ---
+  Mean SR : -0.434
+  % Pos   : -7%
+  Bull SR : -0.383
+  Bear SR : -0.881
+
+Runtime: 289s (4.8 min)

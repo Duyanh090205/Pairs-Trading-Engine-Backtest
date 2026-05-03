@@ -1,0 +1,26 @@
+
+=== Option A: Persistence Gate + No-EOS + Z=3.0 + Fixed Delta=1e-7 ===
+Config: TC=30bps/side, borrow=50bps/yr, N_max=50, capital=$1M
+
+Folds completed : 28 / 45
+Total trades    : 261
+Avg pairs/fold  : 15.9 (after gate)
+
+--- Sharpe Distribution ---
+Mean            : -0.580
+Median          : +0.000
+Std             : 2.965
+% Positive folds: 36%
+Min / Max       : -6.92 / +4.58
+
+--- Regime Breakdown ---
+Bear (Jul-Dec 2022) : mean=+1.357  n=5  pos=60%
+Bull (2023+)        : mean=-1.001  n=23  pos=30%
+
+--- Comparison to Previous Runs ---
+Original pipeline (45 folds)       : mean=-8.90  pos=0%
+Diagnostic (10 folds, no gate)     : mean=-2.47  pos=30%
+Diagnostic (10 folds, old gate)    : mean=-0.17  pos=40%
+Option A   (28 folds)              : mean=-0.580  pos=36%
+
+Runtime: 254s (4.2 min)
