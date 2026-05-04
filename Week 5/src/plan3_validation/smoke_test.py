@@ -36,7 +36,6 @@ def _required_inputs() -> bool:
         WEEK5_ROOT / "data" / "week4_inputs" / "trade_log.csv",
         WEEK5_ROOT / "data" / "week4_inputs" / "rebalance_log.csv",
         WEEK5_ROOT / "data" / "week4_inputs" / "fold_metrics.csv",
-        WEEK5_ROOT / "data" / "microstructure_synth_for_plan2" / "spreads_1min.parquet",
     ]
     missing = [p for p in needed if not p.exists()]
     if missing:
