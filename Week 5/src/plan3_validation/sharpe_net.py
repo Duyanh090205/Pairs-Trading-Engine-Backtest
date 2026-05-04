@@ -37,50 +37,116 @@ def _max_dd(equity: np.ndarray) -> float:
     return float((eq / running - 1.0).min())
 
 
-def _cagr(equity: np.ndarray, n_trading_days: int) -> float:
+def _cagr(equity: np.ndarray, n_calendar_days: int) -> float:
+    """CAGR annualised over the full calendar span (365-day year).
+
+    n_calendar_days should be (last_date - first_date).days across the whole
+    backtest window, NOT the count of active trading days.  Using active days
+    only would overstate CAGR by the ratio of full_span / active_days
+    (≈ 950 / 432 ≈ 2.2× for this dataset).
+    """
     eq = equity[~np.isnan(equity)]
-    if len(eq) == 0 or n_trading_days <= 0 or eq[-1] <= 0:
+    if len(eq) == 0 or n_calendar_days <= 0 or eq[-1] <= 0:
         return float("nan")
-    return float(eq[-1] ** (252.0 / n_trading_days) - 1.0)
+    return float(eq[-1] ** (365.0 / n_calendar_days) - 1.0)
+
+
+def _load_gross_daily_returns(equity_dir: Path) -> pd.Series:
+    """
+    Combine all fold equity parquets into a single daily gross-return series.
+
+    Week 4 equity curves are 1-minute bar-level (mark-to-market throughout
+    each holding period).  Resampling to end-of-business-day gives the true
+    daily return including intra-day position moves — not just exit-day lumps.
+    Fold trading windows do not overlap, so concatenation is safe.
+    """
+    pieces: list[pd.Series] = []
+    for f in sorted(equity_dir.glob("*.parquet")):
+        eq = pd.read_parquet(f)
+        eq.index = pd.to_datetime(eq.index, utc=True).tz_convert("US/Eastern")
+        daily_eq = eq["equity"].resample("B").last().dropna()
+        daily_ret = daily_eq.pct_change().dropna()
+        pieces.append(daily_ret)
+    if not pieces:
+        return pd.Series(dtype=float)
+    combined = pd.concat(pieces).sort_index()
+    return combined[~combined.index.duplicated(keep="first")]
 
 
 def reconstruct_daily_returns(
     cost_log: pd.DataFrame,
     trade_log: pd.DataFrame,
     cost_col: str,
+    equity_dir: Path = DEFAULT_EQUITY_DIR,
 ) -> pd.Series:
     """
     Build a daily-return series for one cost regime.
 
-    Treats cost as an exit-day debit: subtracts each trade's total cost
-    from the day the trade exits, then divides by the prior-day portfolio
-    equity (proxied as starting capital + cumulative gross PnL).
+    Gross returns come from Week 4's bar-level fold equity curves (mark-to-market
+    on every 1-minute bar throughout each holding period).  Cost is applied as
+    an exit-day debit subtracted from the gross return on that date.
 
-    Returns a daily Series indexed by date.
+    This is more accurate than attributing all PnL to the exit day, which
+    compresses intra-hold mark-to-market moves into a single lump-sum return.
     """
+    gross_daily = _load_gross_daily_returns(equity_dir)
+    if gross_daily.empty:
+        # Fallback: zero-filled exit-date reconstruction if equity curves missing
+        return _reconstruct_from_exits(cost_log, trade_log, cost_col)
+
+    aum = trade_log["allocated_capital"].sum()
+    if aum <= 0:
+        return pd.Series(dtype=float)
+
+    if cost_col == "total_cost_gross":
+        return gross_daily
+
+    # Build per-exit-date cost debit (cost_$ / aum → same units as daily return)
+    merged = cost_log.merge(trade_log[["trade_id", "exit_ts"]], on="trade_id")
+    merged["exit_dt"] = (
+        pd.to_datetime(merged["exit_ts"], utc=True)
+        .dt.tz_convert("US/Eastern")
+        .dt.normalize()
+    )
+    cost_series = (
+        merged["total_cost_static"] if cost_col == "total_cost_static"
+        else merged["total_cost_dollars"]
+    )
+    cost_by_day = merged.assign(cost=cost_series).groupby("exit_dt")["cost"].sum() / aum
+    cost_adj = cost_by_day.reindex(gross_daily.index, fill_value=0.0)
+
+    return gross_daily - cost_adj
+
+
+def _reconstruct_from_exits(
+    cost_log: pd.DataFrame,
+    trade_log: pd.DataFrame,
+    cost_col: str,
+) -> pd.Series:
+    """Fallback: exit-date-only reconstruction with zero-fill (used when equity parquets absent)."""
     merged = cost_log.merge(
         trade_log[["trade_id", "exit_ts", "gross_pnl_dollars", "allocated_capital"]],
         on="trade_id",
         suffixes=("", "_tl"),
     )
     merged["exit_date"] = pd.to_datetime(merged["exit_ts"], utc=True).dt.tz_convert("US/Eastern").dt.date
-
-    # net pnl per trade under chosen regime
     if cost_col == "total_cost_gross":
         merged["net_pnl"] = merged["gross_pnl_dollars"]
     elif cost_col == "total_cost_static":
         merged["net_pnl"] = merged["gross_pnl_dollars"] - merged["total_cost_static"]
     else:
         merged["net_pnl"] = merged["gross_pnl_dollars"] - merged["total_cost_dollars"]
-
-    daily = merged.groupby("exit_date")["net_pnl"].sum().sort_index()
-
-    # Capital base: total allocated capital across all trades (proxy for AUM)
     aum = trade_log["allocated_capital"].sum()
     if aum <= 0:
         return pd.Series(dtype=float)
-
-    return daily / aum
+    daily = merged.groupby("exit_date")["net_pnl"].sum().sort_index() / aum
+    if len(daily) >= 2:
+        full_idx = pd.bdate_range(
+            start=pd.Timestamp(daily.index.min()),
+            end=pd.Timestamp(daily.index.max()),
+        )
+        daily = daily.reindex(full_idx, fill_value=0.0)
+    return daily
 
 
 def generate_before_after_table(
@@ -113,9 +179,12 @@ def generate_before_after_table(
         # compounded equity here as a documented approximation.
         eq_curve = (1.0 + daily).cumprod().to_numpy() if len(daily) else np.array([1.0])
         max_dd = _max_dd(eq_curve)
-        n_days = len(daily)
-        cagr = _cagr(eq_curve, n_days) if n_days > 0 else float("nan")
-        calmar = cagr / abs(max_dd) if max_dd and max_dd != 0 else float("nan")
+        # Calendar span from first to last date in the equity curve (includes
+        # inactive gaps between folds).  This is the correct denominator for an
+        # investor who commits capital for the full backtest period.
+        n_calendar = int((daily.index[-1] - daily.index[0]).days) if len(daily) >= 2 else 0
+        cagr = _cagr(eq_curve, n_calendar) if n_calendar > 0 else float("nan")
+        calmar = cagr / abs(max_dd) if not np.isnan(max_dd) and max_dd < 0 else float("nan")
 
         if cost_col == "total_cost_gross":
             wins = (cost_log["gross_pnl_dollars"] > 0).sum()

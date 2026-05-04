@@ -17,6 +17,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from src.plan3_validation.sharpe_net import _load_gross_daily_returns, DEFAULT_EQUITY_DIR
+
 
 WEEK5_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_COST_LOG = WEEK5_ROOT / "data" / "cost_log.parquet"
@@ -29,17 +31,30 @@ def _net_sharpe_after_perturb(
     impact_mult: float = 1.0,
     borrow_mult: float = 1.0,
 ) -> float:
-    df = cost_log.merge(trade_log[["trade_id", "exit_ts", "allocated_capital"]], on="trade_id")
-    df["exit_date"] = pd.to_datetime(df["exit_ts"], utc=True).dt.tz_convert("US/Eastern").dt.date
+    gross_daily = _load_gross_daily_returns(DEFAULT_EQUITY_DIR)
+    if gross_daily.empty:
+        return float("nan")
+
+    aum = trade_log["allocated_capital"].sum()
+    if aum <= 0:
+        return float("nan")
+
+    df = cost_log.merge(trade_log[["trade_id", "exit_ts"]], on="trade_id")
+    df["exit_dt"] = (
+        pd.to_datetime(df["exit_ts"], utc=True)
+        .dt.tz_convert("US/Eastern")
+        .dt.normalize()
+    )
     perturbed_cost = (
         df["spread_cost_dollars"]
         + df["impact_cost_dollars"] * impact_mult
         + df["borrow_cost_dollars"] * borrow_mult
         + df["rebalance_cost_dollars"]
     )
-    net_pnl = df["gross_pnl_dollars"] - perturbed_cost
-    aum = trade_log["allocated_capital"].sum()
-    daily = (df.assign(net=net_pnl).groupby("exit_date")["net"].sum() / aum).to_numpy()
+    cost_by_day = df.assign(cost=perturbed_cost).groupby("exit_dt")["cost"].sum() / aum
+    cost_adj = cost_by_day.reindex(gross_daily.index, fill_value=0.0)
+
+    daily = (gross_daily - cost_adj).to_numpy()
     if len(daily) < 2:
         return float("nan")
     sd = daily.std(ddof=1)

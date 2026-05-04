@@ -44,7 +44,7 @@ $$C_{total}(t) = C_{spread}(t) + C_{impact}(t) + C_{borrow}(t)$$
 |-----------|---------|-------------|
 | **Spread Cost** | `half_spread_l1_bps(t)` | Empirical, varies per ticker per bar |
 | **Market Impact** | `κ × spread_std_1d(t)` | Spread-instability-scaled; κ pre-assigned by liquidity tier |
-| **Borrow Cost** | `(rate / 10,000) / 252 × short_notional` | Daily accrual on short leg (50 bps/yr default) |
+| **Borrow Cost** | `(rate / 10,000) / 365 × short_notional` | Daily accrual on short leg (50 bps/yr default; calendar-day convention) |
 
 ### Impact Coefficient (κ) Tiers
 | Tier | Median L1 Spread | κ |

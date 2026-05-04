@@ -15,6 +15,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats as scipy_stats
 
+from src.plan3_validation.sharpe_net import reconstruct_daily_returns
+
 
 WEEK5_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_COST_LOG = WEEK5_ROOT / "data" / "cost_log.parquet"
@@ -68,7 +70,17 @@ def _daily_returns_for_regime(
     aum = trade_log["allocated_capital"].sum()
     if aum <= 0:
         return pd.Series(dtype=float)
-    return df.groupby("exit_date")["net_pnl"].sum().sort_index() / aum
+    daily = df.groupby("exit_date")["net_pnl"].sum().sort_index() / aum
+    # C2: zero-fill every business day so std() covers the full holding period,
+    # not just the ~90 exit dates.  Without this, sqrt(252) annualisation
+    # overstates Sharpe by ~sqrt(n_bdays / n_exits).
+    if len(daily) >= 2:
+        full_idx = pd.bdate_range(
+            start=pd.Timestamp(daily.index.min()),
+            end=pd.Timestamp(daily.index.max()),
+        )
+        daily = daily.reindex(full_idx, fill_value=0.0)
+    return daily
 
 
 def _per_fold_sharpe(
@@ -93,6 +105,14 @@ def _per_fold_sharpe(
             out[int(fold_id)] = float("nan")
             continue
         daily = sub.groupby("exit_date")["net_pnl"].sum() / aum_fold
+        # C2: zero-fill within this fold's exit-date span so the per-fold
+        # Sharpe uses the same business-day denominator as the full series.
+        if len(daily) >= 2:
+            full_idx = pd.bdate_range(
+                start=pd.Timestamp(daily.index.min()),
+                end=pd.Timestamp(daily.index.max()),
+            )
+            daily = daily.reindex(full_idx, fill_value=0.0)
         if len(daily) < 2 or daily.std(ddof=1) < 1e-12:
             out[int(fold_id)] = float("nan")
             continue
@@ -134,10 +154,21 @@ def _compute_pbo(per_fold_sharpe: dict[int, float], n_splits: int = 4) -> float:
 def compute_overfitting_diagnostics(
     cost_log_path: Path | str = DEFAULT_COST_LOG,
     trade_log_path: Path | str = DEFAULT_TRADE_LOG,
+    n_strategy_variants: int = 50,
 ) -> pd.DataFrame:
     """
     Returns DataFrame with rows ['Raw Sharpe', 'DSR p-value', 'PBO']
     and columns ['Gross', 'Static', 'Dynamic'].
+
+    Parameters
+    ----------
+    n_strategy_variants : int
+        Number of independent strategy configurations tested over the full
+        research process (Weeks 1–5).  Bailey & López de Prado (2014) define
+        this as the number of *strategies* tried, NOT the number of walk-forward
+        folds.  Using fold count (≈22) underestimates E[max_SR] and inflates DSR.
+        Default 50 is a conservative estimate for a multi-week research process;
+        increase if more parameter combinations were evaluated.
     """
     cost_log = pd.read_parquet(cost_log_path)
     trade_log = pd.read_csv(trade_log_path)
@@ -149,7 +180,10 @@ def compute_overfitting_diagnostics(
     }
     out: dict[str, dict[str, float]] = {}
     for label, col in regimes.items():
-        daily = _daily_returns_for_regime(cost_log, trade_log, col).to_numpy()
+        # Use the same equity-curve-based return series as the headline Sharpe table
+        # so DSR is computed on the identical distribution, not a separately
+        # reconstructed one.
+        daily = reconstruct_daily_returns(cost_log, trade_log, col).to_numpy()
         if len(daily) < 2:
             out[label] = {"Raw Sharpe": float("nan"), "DSR p-value": float("nan"), "PBO": float("nan")}
             continue
@@ -161,9 +195,10 @@ def compute_overfitting_diagnostics(
         skew = float(scipy_stats.skew(daily))
         kurt = float(scipy_stats.kurtosis(daily, fisher=True))
         per_fold = _per_fold_sharpe(cost_log, trade_log, col)
-        n_trials = max(1, sum(1 for s in per_fold.values() if not np.isnan(s)))
+        # DSR: use strategy-variant count, not fold count.
+        # PBO: uses fold count (correct — it is a fold-combinatorial test).
         dsr = deflated_sharpe_ratio(
-            sharpe_obs=sharpe, n_obs=len(daily), n_trials=n_trials,
+            sharpe_obs=sharpe, n_obs=len(daily), n_trials=n_strategy_variants,
             skew=skew, kurt_excess=kurt,
         )
         pbo = _compute_pbo(per_fold)

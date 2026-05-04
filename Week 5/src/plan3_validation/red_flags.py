@@ -54,3 +54,23 @@ def check_math_violation(total_cost_dollars: float, net_pnl_dollars: float, gros
     Returns True if red flag is triggered.
     """
     return total_cost_dollars < 0.0 or net_pnl_dollars > gross_pnl_dollars
+
+
+def check_outlier_pnl(gross_pnl_bps: float, threshold_bps: float = 1000.0) -> bool:
+    """
+    D1 guard: flag any trade whose gross PnL exceeds `threshold_bps` of
+    allocated capital.
+
+    A single-trade gross PnL > 1000 bps (~10% of pair capital) is physically
+    unusual for a mean-reversion strategy on S&P 500 pairs with ~1.7-day
+    holding periods.  Values this large most commonly indicate:
+      - A corporate-action price gap on one leg (split/dividend not adjusted)
+      - A stale mid-price from the synthetic-symmetric LOB around an overnight gap
+      - A notional mis-denomination (e.g., per-share instead of per-pair)
+
+    Trigger:  gross_pnl_bps > threshold_bps (default 1000 bps = 10%)
+    Action:   Cross-check the trade against an external price source before
+              accepting the PnL in any headline Sharpe figure.
+    Returns True if the flag is triggered.
+    """
+    return gross_pnl_bps > threshold_bps

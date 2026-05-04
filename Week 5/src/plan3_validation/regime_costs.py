@@ -95,6 +95,16 @@ def analyze_regime_costs(
         d_gross = sub.groupby("exit_date")["gross_pnl_dollars"].sum() / aum
         d_dyn = sub_with_net.groupby("exit_date")["net_pnl"].sum() / aum
 
+        # C2: zero-fill within this regime's exit-date span so std() is not
+        # computed over only the ~10-50 exit dates in each sub-period.
+        if len(d_gross) >= 2:
+            regime_idx = pd.bdate_range(
+                start=pd.Timestamp(d_gross.index.min()),
+                end=pd.Timestamp(d_gross.index.max()),
+            )
+            d_gross = d_gross.reindex(regime_idx, fill_value=0.0)
+            d_dyn = d_dyn.reindex(regime_idx, fill_value=0.0)
+
         sharpe_gross = _annualised_sharpe(d_gross.to_numpy())
         sharpe_dyn = _annualised_sharpe(d_dyn.to_numpy())
 

@@ -67,8 +67,12 @@ def analyze_kill_zone(
     labels = np.array(_BUCKET_LABELS)
     spreads["bucket"] = labels[idx]
 
-    # Tier per ticker = the most common kappa across that ticker's folds
-    ticker_kappa = kappa.groupby("ticker")["kappa"].agg(lambda s: s.mode().iloc[0])
+    # Tier per ticker = the most common kappa across that ticker's folds.
+    # On a tie, mode() returns both values sorted; iloc[0] picks the smaller κ
+    # (more liquid tier) consistently.  This is stable and defensively handled.
+    ticker_kappa = kappa.groupby("ticker")["kappa"].agg(
+        lambda s: s.mode().iloc[0] if len(s.mode()) > 0 else s.iloc[0]
+    )
     spreads["tier"] = spreads["ticker"].map(ticker_kappa).map(
         {0.3: "Tier1_Tight", 0.5: "Tier2_Medium", 0.8: "Tier3_Wide"}
     )

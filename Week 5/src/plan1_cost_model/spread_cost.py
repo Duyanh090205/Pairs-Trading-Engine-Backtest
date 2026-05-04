@@ -13,4 +13,7 @@ def calculate_spread_cost(half_spread_l1_bps: float, notional_dollars: float) ->
     Returns:
         The spread cost in dollars.
     """
-    return notional_dollars * (half_spread_l1_bps / 10000.0)
+    # Guard against negative spread values (e.g. crossed quotes that reached this layer).
+    # Cost is always non-negative; negative spread = data artefact, not revenue.
+    effective_bps = max(half_spread_l1_bps, 0.0)
+    return notional_dollars * (effective_bps / 10000.0)
