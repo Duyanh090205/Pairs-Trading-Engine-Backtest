@@ -20,6 +20,7 @@ for _v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
     _os.environ.setdefault(_v, "1")
 
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -27,11 +28,34 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from loguru import logger
 
 _BASE = Path(__file__).parent
 _DB = Path(os.environ.get("STATE_DB_PATH", "./live/state/live_state.db"))
 
-app = FastAPI(title="Week 6 Live Paper Trading Dashboard")
+# Toggle: set ENGINE_ENABLED=true in Render env to auto-start the engine alongside
+# the dashboard in the same uvicorn process. Default false for local dashboard-only mode.
+_ENGINE_ENABLED = os.environ.get("ENGINE_ENABLED", "false").lower() == "true"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Launch engine as concurrent task on dashboard startup (if enabled)."""
+    if _ENGINE_ENABLED:
+        try:
+            from live.main import configure_logging, start_engine_background
+            configure_logging()
+            await start_engine_background()
+            logger.info("Live engine started inside uvicorn process")
+        except Exception as e:
+            logger.error(f"Engine startup failed: {type(e).__name__}: {e}")
+    else:
+        logger.info("Dashboard-only mode (ENGINE_ENABLED=false)")
+    yield
+    # Shutdown: nothing special — uvicorn cancels asyncio tasks
+
+
+app = FastAPI(title="Week 6 Live Paper Trading Dashboard", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(_BASE / "templates"))
 app.mount("/static", StaticFiles(directory=str(_BASE / "static")), name="static")
 

@@ -17,8 +17,7 @@ services:
     name: week6-paper-dashboard
     runtime: python
     region: oregon
-    # plan: starter   # Uncomment + add credit card for $7/mo always-on.
-                       # Default = free tier (sleeps after 15min, needs ping).
+    plan: starter   # $7/mo — required for paid disk + always-on engine.
 
     # Build runs in REPO ROOT, but our code lives in `Week 6/`. We cd into it
     # for every step. The `--universe extended` pull is ~2 minutes; discovery
@@ -74,6 +73,11 @@ services:
       - key: BETA_CAP
         value: "5.0"
       - key: USE_COMPOSITE_FILTER
+        value: "true"
+
+      # Engine: set true on Render to run the live engine alongside dashboard.
+      # Default false locally (dashboard-only for dev).
+      - key: ENGINE_ENABLED
         value: "true"
 
       # SECRETS — set manually in Render UI. sync:false = do NOT commit.
