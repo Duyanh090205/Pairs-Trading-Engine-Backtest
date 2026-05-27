@@ -19,14 +19,13 @@ services:
     region: oregon
     plan: starter   # $7/mo — required for paid disk + always-on engine.
 
-    # Build runs in REPO ROOT, but our code lives in `Week 6/`. We cd into it
-    # for every step. The `--universe extended` pull is ~2 minutes; discovery
-    # is ~40s. Total build ~5-7 min.
+    # Build runs in REPO ROOT, but our code lives in `Week 6/`. cd in for each
+    # step. Universe lists (universe_top300.json + universe_extended_528.json)
+    # are pre-committed so build doesn't depend on local Polygon paths.
     buildCommand: |
       cd "Week 6"
       pip install -r requirements-live.txt
       python scripts/build_live_daily_cache.py --universe extended
-      TOP_N=300 python scripts/select_top50_universe.py
       python scripts/run_live_discovery.py \
         --filter-tradable live/universe_top300.json \
         --apply-ticker-cap \

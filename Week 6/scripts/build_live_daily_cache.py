@@ -81,7 +81,8 @@ def pull_daily_adjusted(client, ticker: str, start: datetime, end: datetime) -> 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--universe", default="top50",
-                        help="'top50' (live universe) or 'extended' (all backtest tickers)")
+                        help="'top50' (live universe) or 'extended' (all backtest tickers) "
+                             "or path to JSON with 'tickers' list (vd. live/universe_top300.json)")
     parser.add_argument("--end-date", default=None,
                         help="YYYY-MM-DD inclusive; default = today UTC")
     parser.add_argument("--days", type=int, default=WINDOW_DAYS,
@@ -94,22 +95,32 @@ def main() -> int:
         print(f"ERROR: missing env var {e}", file=sys.stderr)
         return 1
 
+    # Resolve universe → list of tickers.
     if args.universe == "top50":
-        if not UNIVERSE_FILE.exists():
-            print(f"ERROR: {UNIVERSE_FILE} not found. Run scripts/select_top50_universe.py first.",
-                  file=sys.stderr)
-            return 1
-        tickers = json.loads(UNIVERSE_FILE.read_text())["tickers"]
+        path = UNIVERSE_FILE
     elif args.universe == "extended":
-        if not POLYGON_REFERENCE.exists():
-            print(f"ERROR: Polygon reference dir not found at {POLYGON_REFERENCE}",
-                  file=sys.stderr)
-            return 1
-        tickers = sorted(p.stem for p in POLYGON_REFERENCE.iterdir()
-                          if p.suffix == ".parquet")
+        # Local: glob Polygon dir. Render: that path won't exist, so fall back
+        # to committed universe_extended_528.json if present.
+        if POLYGON_REFERENCE.exists():
+            tickers = sorted(p.stem for p in POLYGON_REFERENCE.iterdir()
+                              if p.suffix == ".parquet")
+            path = None
+        else:
+            path = ROOT / "live" / "universe_extended_528.json"
+            if not path.exists():
+                print(f"ERROR: Polygon ref missing AND fallback {path} not present.",
+                      file=sys.stderr)
+                return 1
     else:
-        print(f"ERROR: unknown universe '{args.universe}'", file=sys.stderr)
-        return 1
+        # Treat --universe as a path to JSON {tickers: [...]}
+        path = Path(args.universe)
+        if not path.is_absolute():
+            path = ROOT / args.universe
+        if not path.exists():
+            print(f"ERROR: universe file not found: {path}", file=sys.stderr)
+            return 1
+    if path is not None:
+        tickers = json.loads(path.read_text())["tickers"]
 
     end = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     if args.end_date:
