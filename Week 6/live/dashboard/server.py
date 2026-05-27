@@ -83,6 +83,36 @@ def health():
     return {"ok": True, "db_exists": _DB.exists()}
 
 
+@app.get("/api/engine_info")
+def engine_info():
+    """Runtime info about the engine (uptime, pairs loaded, last bar)."""
+    import time as _time
+    from datetime import datetime, timezone
+    info = {
+        "engine_running": False,
+        "uptime_seconds": 0,
+        "pairs_loaded": 0,
+        "universe_size": 0,
+        "last_bar_ts": None,
+        "server_time_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        from live.main import get_engine
+        engine = get_engine()
+        if engine is not None:
+            info["engine_running"] = True
+            info["pairs_loaded"] = len(engine.pair_contexts)
+            info["universe_size"] = len(engine.universe_tickers)
+            if engine.latest_bar_ts:
+                # Most recent bar timestamp across all tickers
+                info["last_bar_ts"] = max(engine.latest_bar_ts.values())
+            if engine._session_start_equity is not None:
+                info["session_start_equity"] = engine._session_start_equity
+    except Exception:
+        pass
+    return info
+
+
 @app.get("/api/status")
 def status():
     """Connectivity strip: kill-switch state, last bar age, broker auth."""
