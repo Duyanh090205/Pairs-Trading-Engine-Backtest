@@ -102,6 +102,16 @@ CREATE TABLE IF NOT EXISTS kill_switch (
 
 INSERT OR IGNORE INTO kill_switch (id, halted) VALUES (1, 0);
 
+-- Engine session state (persists across restarts within same paper run)
+CREATE TABLE IF NOT EXISTS engine_session (
+    id                      INTEGER PRIMARY KEY CHECK (id = 1),
+    session_start_equity    REAL,
+    session_started_ts      TEXT,
+    last_decision_date      TEXT
+);
+
+INSERT OR IGNORE INTO engine_session (id) VALUES (1);
+
 -- Regime decision per month (composite filter result)
 CREATE TABLE IF NOT EXISTS regime_decisions (
     month       TEXT PRIMARY KEY,             -- YYYY-MM

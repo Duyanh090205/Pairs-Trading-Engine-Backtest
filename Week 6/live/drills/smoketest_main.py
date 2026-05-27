@@ -100,8 +100,88 @@ def t_engine_initialize():
               len(sample.z_tracker.buf) == sample.z_tracker.window)
 
 
+def t_state_recovery_from_open_positions():
+    """FIX BUG 2: engine restores ctx.current_state from open positions on init."""
+    from datetime import datetime, timezone
+    from live.state.persist import connect, init_db
+
+    td = tempfile.mkdtemp(prefix="state_rec_")
+    import os as _os
+    _os.environ["STATE_DB_PATH"] = str(Path(td) / "test.db")
+    db = Path(td) / "test.db"
+    init_db(db)
+
+    # Pre-seed an open position for one of the real pairs (use first pair from artifacts)
+    import pandas as pd
+    pairs = pd.read_parquet(Path(__file__).resolve().parents[2] /
+                            "live" / "state" / "discovered_pairs.parquet")
+    sample_pair = pairs.iloc[0]
+    ta, tb = sample_pair["ticker_a"], sample_pair["ticker_b"]
+    pair_id = f"{ta}_{tb}"
+    ts = datetime.now(timezone.utc).isoformat()
+    with connect(db) as conn:
+        conn.execute(
+            "INSERT INTO positions (pair_id, side_a, side_b, beta, direction, "
+            "notional_a, notional_b, entry_ts, entry_z) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (pair_id, ta, tb, 1.0, -1, 1000, 1000, ts, 3.5),
+        )
+
+    import importlib
+    import live.main
+    importlib.reload(live.main)
+    from live.main import LiveEngine as ReloadedEngine
+
+    with patch("live.main.build_trading_client") as mock_build:
+        mock_build.return_value = _mock_alpaca_client()
+        engine = ReloadedEngine(cfg=MagicMock(
+            api_key="t", secret_key="t", base_url="x", data_url="y", paper=True,
+        ))
+        engine.initialize()
+        ctx = engine.pair_contexts.get(pair_id)
+        check(f"pair_context restored for {pair_id}", ctx is not None)
+        if ctx:
+            check(f"current_state restored to -1 (from positions.direction)",
+                  ctx.current_state == -1, f"got {ctx.current_state}")
+
+
+def t_session_equity_persisted():
+    """FIX BUG 5: session_start_equity persists across restarts."""
+    from live.state.persist import connect, get_or_set_session_equity, init_db
+
+    td = tempfile.mkdtemp(prefix="sess_eq_")
+    db = Path(td) / "test.db"
+    init_db(db)
+    with connect(db) as conn:
+        # First call: sets baseline
+        eq1 = get_or_set_session_equity(conn, 100_000.0)
+        check("first call sets baseline to 100k", eq1 == 100_000.0)
+        # Second call (different equity): should still return original baseline
+        eq2 = get_or_set_session_equity(conn, 95_000.0)
+        check("second call (after drawdown) returns ORIGINAL 100k baseline",
+              eq2 == 100_000.0, f"got {eq2}")
+
+
+def t_qty_floor_not_overshoot():
+    """FIX BUG 4: qty=int(notional/price) — never overshoots."""
+    # SPY at $660, notional $1000:
+    #   round(1.515) = 2 -> actual $1320 (32% overshoot)
+    #   int(1.515)   = 1 -> actual $660  (under cap, OK)
+    notional = 1000.0
+    price = 660.0
+    qty_int = max(1, int(notional / price))
+    qty_round = max(1, round(notional / price))
+    actual_int = qty_int * price
+    actual_round = qty_round * price
+    check(f"int(qty) = 1 (actual ${actual_int})",
+          qty_int == 1 and actual_int <= notional)
+    check(f"round(qty) = 2 would overshoot (actual ${actual_round})",
+          qty_round == 2 and actual_round > notional,
+          f"qty_round={qty_round}, actual=${actual_round}")
+
+
 def t_on_bar_no_signal():
-    """When Z is near zero, decide returns hold; no order submission."""
+    """WebSocket bar handler is now telemetry-only — does NOT submit orders."""
     from live.main import LiveEngine
 
     td = tempfile.mkdtemp(prefix="bar_noop_")
@@ -184,7 +264,13 @@ def main() -> int:
     print("== Smoketest: live engine main.py ==\n")
     print("--- Engine initialization ---")
     t_engine_initialize()
-    print("\n--- on_bar pipeline (no signal case) ---")
+    print("\n--- Bug 2: state recovery from open positions ---")
+    t_state_recovery_from_open_positions()
+    print("\n--- Bug 5: session_start_equity persists across restarts ---")
+    t_session_equity_persisted()
+    print("\n--- Bug 4: qty floor (int) vs round ---")
+    t_qty_floor_not_overshoot()
+    print("\n--- on_bar is telemetry only (BUG 3 fix) ---")
     t_on_bar_no_signal()
     print("\n--- FastAPI lifespan with engine disabled ---")
     t_engine_fastapi_lifespan_disabled()

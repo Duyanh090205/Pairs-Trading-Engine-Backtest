@@ -111,3 +111,39 @@ def clear_halt(conn: sqlite3.Connection) -> None:
         "UPDATE kill_switch SET halted = 0, cleared_ts = ? WHERE id = 1",
         (datetime.now(timezone.utc).isoformat(),),
     )
+
+
+def get_or_set_session_equity(conn: sqlite3.Connection, current_equity: float) -> float:
+    """Persist session_start_equity across restarts. Returns the original value.
+
+    On first call: stores current_equity as the session baseline.
+    Subsequent calls (after restart): returns the stored baseline (NOT current).
+    Reason: kill_switch drawdown should be measured from FIRST deploy equity,
+    not from each restart's current equity (which may already be depleted).
+    """
+    from datetime import datetime, timezone
+    row = conn.execute(
+        "SELECT session_start_equity FROM engine_session WHERE id = 1"
+    ).fetchone()
+    if row is not None and row["session_start_equity"] is not None:
+        return float(row["session_start_equity"])
+    conn.execute(
+        "UPDATE engine_session SET session_start_equity = ?, session_started_ts = ? "
+        "WHERE id = 1",
+        (current_equity, datetime.now(timezone.utc).isoformat()),
+    )
+    return current_equity
+
+
+def get_last_decision_date(conn: sqlite3.Connection) -> str | None:
+    row = conn.execute(
+        "SELECT last_decision_date FROM engine_session WHERE id = 1"
+    ).fetchone()
+    return row["last_decision_date"] if row else None
+
+
+def set_last_decision_date(conn: sqlite3.Connection, date_iso: str) -> None:
+    conn.execute(
+        "UPDATE engine_session SET last_decision_date = ? WHERE id = 1",
+        (date_iso,),
+    )
