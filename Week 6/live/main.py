@@ -253,17 +253,29 @@ class LiveEngine:
             ctx.current_state = d.new_state
             ctx.last_decision_date = today.isoformat()
 
-    async def _pull_recent_daily_bars(self, today: date,
-                                        lookback_days: int = 30) -> dict:
-        """REST pull daily bars for factor universe. Returns dict[ticker] -> DataFrame."""
+    async def _pull_recent_daily_bars(self, today: date) -> dict:
+        """REST pull daily bars for factor universe. Returns dict[ticker] -> DataFrame.
+
+        FIX BUG 6: window starts at FORMATION_END (fixed), not today-30 (sliding).
+        Reason: ResidualProjector._anchor_shifts is cached on first call. If the
+        window's first day slides forward each daily call, the anchor reference
+        becomes inconsistent and Z-score drifts.
+        """
+        import json
         import pandas as pd
         from alpaca.data.enums import DataFeed
         from alpaca.data.requests import StockBarsRequest
         from alpaca.data.timeframe import TimeFrame
 
         client = build_data_client(self.cfg)
-        start = datetime.combine(today - timedelta(days=lookback_days),
-                                  dtime(0, 0), tzinfo=timezone.utc)
+        # Read formation_end from discovery meta — FIXED reference, doesn't slide.
+        meta_fp = ROOT / "live" / "state" / "discovery_meta.json"
+        if meta_fp.exists():
+            meta = json.loads(meta_fp.read_text())
+            formation_end = date.fromisoformat(meta["formation_end"])
+        else:
+            formation_end = today - timedelta(days=30)   # fallback
+        start = datetime.combine(formation_end, dtime(0, 0), tzinfo=timezone.utc)
         end = datetime.combine(today, dtime(23, 59), tzinfo=timezone.utc)
 
         out: dict[str, pd.DataFrame] = {}
