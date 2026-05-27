@@ -110,8 +110,12 @@ class AlpacaStream:
         self._set_state(ConnState.STOPPED)
 
     async def _consume_one_session(self, on_bar: Callable[[dict], Awaitable[None]]) -> None:
+        from alpaca.data.enums import DataFeed
         from alpaca.data.live import StockDataStream
-        stream = StockDataStream(self.cfg.api_key, self.cfg.secret_key, feed=self.stream_cfg.feed)
+        # alpaca-py expects DataFeed enum, not str. Map string config -> enum.
+        feed_map = {"iex": DataFeed.IEX, "sip": DataFeed.SIP}
+        feed = feed_map.get(self.stream_cfg.feed.lower(), DataFeed.IEX)
+        stream = StockDataStream(self.cfg.api_key, self.cfg.secret_key, feed=feed)
 
         async def _bar_handler(bar) -> None:
             self._last_bar_ts[getattr(bar, "symbol", None) or bar["symbol"]] = time.time()
