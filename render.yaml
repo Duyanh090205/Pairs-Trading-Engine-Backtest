@@ -26,7 +26,12 @@ services:
       cd "Week 6"
       pip install -r requirements-live.txt
       python scripts/build_live_daily_cache.py --universe extended
+      # formation_end = last calendar day of previous month so trading window
+      # (formation_end -> today) has 10+ daily bars for residual projection.
+      FORMATION_END=$(python -c "from datetime import date; from calendar import monthrange; t=date.today(); m,y=((12,t.year-1) if t.month==1 else (t.month-1,t.year)); print(date(y,m,monthrange(y,m)[1]).isoformat())")
+      echo "Discovery formation_end=$FORMATION_END (last day of previous month)"
       python scripts/run_live_discovery.py \
+        --formation-end $FORMATION_END \
         --filter-tradable live/universe_top300.json \
         --apply-ticker-cap \
         --split-sample-gate 0.10 \
