@@ -77,6 +77,11 @@ def main() -> int:
                              "re-test cointegration on first vs second half of formation; "
                              "drop pair if either half p >= this threshold. "
                              "Recommended: 0.10 (loose). 0.05 = strict.")
+    parser.add_argument("--no-ticker-reuse", action="store_true",
+                        help="Enforce disjoint ticker sets across pairs: each ticker may "
+                             "appear in at most ONE pair. Greedy selection by johansen_pval "
+                             "(lowest p first). Eliminates Alpaca wash-trade rejections that "
+                             "occur when the same symbol gets opposing orders from two pairs.")
     args = parser.parse_args()
 
     if not CACHE_DIR.exists():
@@ -172,6 +177,26 @@ def main() -> int:
         pairs_df = apply_ticker_concentration_cap(pairs_df)
         print(f"Ticker cap: {before} -> {len(pairs_df)} pairs")
 
+    # Optional: no-ticker-reuse — each ticker appears in at most one pair.
+    # Greedy by johansen_pval ascending (strongest cointegration kept).
+    # Prevents Alpaca wash-trade rejections when same symbol gets opposing
+    # orders from two pairs.
+    if args.no_ticker_reuse:
+        before = len(pairs_df)
+        ordered = pairs_df.sort_values("johansen_pval", ascending=True)
+        used: set[str] = set()
+        keep_idx = []
+        for idx, row in ordered.iterrows():
+            ta, tb = row["ticker_a"], row["ticker_b"]
+            if ta in used or tb in used:
+                continue
+            keep_idx.append(idx)
+            used.add(ta)
+            used.add(tb)
+        pairs_df = pairs_df.loc[keep_idx].copy()
+        print(f"No-ticker-reuse: {before} -> {len(pairs_df)} pairs "
+              f"(dropped {before - len(pairs_df)} overlapping)")
+
     # Persist
     PAIRS_OUT.parent.mkdir(parents=True, exist_ok=True)
     pairs_df.to_parquet(PAIRS_OUT)
@@ -196,6 +221,7 @@ def main() -> int:
         "hl_max": args.hl_max,
         "ticker_cap_applied": args.apply_ticker_cap,
         "split_sample_gate_p_thresh": args.split_sample_gate,
+        "no_ticker_reuse": args.no_ticker_reuse,
         "total_elapsed_s": float(time.time() - t0),
     }
     META_OUT.write_text(json.dumps(meta, indent=2))
