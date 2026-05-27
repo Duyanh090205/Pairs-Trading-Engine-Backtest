@@ -87,3 +87,7 @@ services:
         sync: false
       - key: DISCORD_WEBHOOK_URL
         sync: false
+      # Admin token guards /api/admin/force_decision_now (manual decision trigger).
+      # Set to any random string in Render UI. Leave unset to disable the endpoint.
+      - key: ADMIN_TOKEN
+        sync: false

@@ -113,6 +113,67 @@ def engine_info():
     return info
 
 
+@app.post("/api/admin/force_decision_now")
+async def force_decision_now(request: Request):
+    """One-shot manual trigger for daily_decision (paper-only emergency lever).
+
+    Use case: after close on a trading day, kick off today's decision IMMEDIATELY
+    instead of waiting for the next 21:05 UTC scheduled wake-up. Useful after
+    redeploying with new pair config when you don't want to wait a full day cycle.
+
+    Auth: header `X-Admin-Token` must match env ADMIN_TOKEN (not committed).
+    """
+    from datetime import datetime, timezone
+
+    token_expected = os.environ.get("ADMIN_TOKEN")
+    if not token_expected:
+        return JSONResponse({"error": "ADMIN_TOKEN not configured"}, status_code=503)
+    token_given = request.headers.get("X-Admin-Token", "")
+    if token_given != token_expected:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+
+    try:
+        from live.main import get_engine
+        from live.state.persist import connect, set_last_decision_date
+        from live.engine_live.trading_calendar import is_trading_day
+    except Exception as e:
+        return JSONResponse({"error": f"import failed: {e}"}, status_code=500)
+
+    engine = get_engine()
+    if engine is None:
+        return JSONResponse({"error": "engine not running"}, status_code=503)
+
+    today = datetime.now(timezone.utc).date()
+    if not is_trading_day(today):
+        return JSONResponse(
+            {"error": f"{today.isoformat()} is not a trading day"}, status_code=400
+        )
+
+    # Claim today FIRST so the regular loop doesn't race us on next wake-up.
+    try:
+        with connect(_DB) as conn:
+            set_last_decision_date(conn, today.isoformat())
+    except Exception as e:
+        logger.warning(f"could not pre-set last_decision_date: {e}")
+
+    n_pairs_before = len(engine.pair_contexts)
+    try:
+        await engine._run_daily_decisions(today)
+    except Exception as e:
+        logger.error(f"force_decision_now: {type(e).__name__}: {e}")
+        return JSONResponse(
+            {"error": f"{type(e).__name__}: {e}", "date": today.isoformat()},
+            status_code=500,
+        )
+
+    return {
+        "ok": True,
+        "date": today.isoformat(),
+        "pairs_considered": n_pairs_before,
+        "note": "Orders (if any) will appear in /api/orders within seconds.",
+    }
+
+
 @app.get("/api/status")
 def status():
     """Connectivity strip: kill-switch state, last bar age, broker auth."""
