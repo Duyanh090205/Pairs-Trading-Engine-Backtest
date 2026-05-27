@@ -26,11 +26,16 @@ class OrderRequest:
     order_type: str      # 'market' | 'limit' | 'moo'
     limit_price: float | None = None
 
-    def client_order_id(self) -> str:
+    def client_order_id(self, attempt: int = 0) -> str:
         # Include order_type + limit_price so a market vs limit order with same
         # logical parameters get DIFFERENT ids (per Day-2 deep-audit Bug #2).
+        # attempt>0 distinguishes retries after a previous attempt was canceled
+        # or rejected, so the new submission gets a fresh client_order_id and
+        # the broker (Alpaca) doesn't see a duplicate coid.
         raw = (f"{self.pair_id}|{self.bar_ts}|{self.leg}|{self.side}|"
                f"{self.qty:.4f}|{self.order_type}|{self.limit_price or ''}")
+        if attempt > 0:
+            raw += f"|attempt={attempt}"
         return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
 
@@ -47,6 +52,21 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# Statuses that mean a previous submission attempt is DEAD — safe to re-submit
+# under a new client_order_id. Anything not in this set is treated as still
+# alive (or successfully filled) and dedupe blocks re-submission.
+_DEAD_STATUSES = frozenset({
+    "canceled", "orderstatus.canceled",
+    "rejected", "orderstatus.rejected",
+    "expired", "orderstatus.expired",
+    "refused_hardstop", "refused_halt",
+})
+
+
+def _is_dead_status(status: str | None) -> bool:
+    return (status or "").lower() in _DEAD_STATUSES
+
+
 def submit_order(trading_client, conn: sqlite3.Connection, req: OrderRequest,
                  decision_price: float, dry_run: bool = False) -> OrderResult:
     """Submit `req` idempotently. Returns OrderResult.
@@ -54,38 +74,59 @@ def submit_order(trading_client, conn: sqlite3.Connection, req: OrderRequest,
     Safety gates (FIRST, before any broker call):
       - hardstop tripped → refuse
       - kill_switch halted → refuse
-      - duplicate client_order_id present → return existing
+      - duplicate client_order_id present and ALIVE → return existing
+      - duplicate client_order_id but DEAD (canceled/rejected/expired) →
+        walk attempt counter until we find a fresh coid, then submit
     """
     from live.safety import hardstop
     from live.state.persist import is_halted, log_event
 
-    coid = req.client_order_id()
-
     # Gate 1: hardstop
     if hardstop.is_tripped():
+        coid_for_log = req.client_order_id()
         log_event(conn, "order_refused", "ERROR",
                   f"hardstop tripped — refusing {req.pair_id} {req.ticker} {req.side}",
-                  {"client_order_id": coid})
-        return OrderResult(coid, None, "refused_hardstop", False, "hardstop_tripped")
+                  {"client_order_id": coid_for_log})
+        return OrderResult(coid_for_log, None, "refused_hardstop", False, "hardstop_tripped")
 
     # Gate 2: kill_switch DB halt
     halted, halt_reason = is_halted(conn)
     if halted:
+        coid_for_log = req.client_order_id()
         log_event(conn, "order_refused", "ERROR",
                   f"kill_switch halted ({halt_reason}) — refusing {req.pair_id}",
-                  {"client_order_id": coid})
-        return OrderResult(coid, None, "refused_halt", False, f"halted:{halt_reason}")
+                  {"client_order_id": coid_for_log})
+        return OrderResult(coid_for_log, None, "refused_halt", False, f"halted:{halt_reason}")
 
-    # Gate 3: idempotency
-    row = conn.execute(
-        "SELECT broker_order_id, status FROM orders WHERE client_order_id = ?",
-        (coid,),
-    ).fetchone()
-    if row is not None:
-        log_event(conn, "order_dedupe", "INFO",
-                  f"client_order_id already present ({req.ticker}); returning existing",
-                  {"client_order_id": coid})
-        return OrderResult(coid, row["broker_order_id"], row["status"], False, None)
+    # Gate 3: idempotency with retry walk
+    attempt = 0
+    coid = req.client_order_id(attempt=0)
+    while True:
+        row = conn.execute(
+            "SELECT broker_order_id, status FROM orders WHERE client_order_id = ?",
+            (coid,),
+        ).fetchone()
+        if row is None:
+            break    # fresh coid — proceed to submit
+        if not _is_dead_status(row["status"]):
+            # Existing order is still alive / filled — return it (true dedupe)
+            log_event(conn, "order_dedupe", "INFO",
+                      f"client_order_id already present ({req.ticker}); "
+                      f"status={row['status']}, returning existing",
+                      {"client_order_id": coid})
+            return OrderResult(coid, row["broker_order_id"], row["status"], False, None)
+        # Existing row is dead — advance attempt counter and try again
+        attempt += 1
+        if attempt > 50:    # safety cap; in practice 1–2 attempts is plenty
+            log_event(conn, "order_error", "ERROR",
+                      f"too many dead retries ({req.ticker}); giving up",
+                      {"client_order_id": coid})
+            return OrderResult(coid, None, "rejected", False, "too_many_retries")
+        coid = req.client_order_id(attempt=attempt)
+        log_event(conn, "order_resubmit", "INFO",
+                  f"previous attempt {attempt-1} was {row['status']}; "
+                  f"retrying {req.ticker} with attempt={attempt}",
+                  {"client_order_id": coid, "previous_status": row["status"]})
 
     # Broker submit
     broker_id: str | None = None
