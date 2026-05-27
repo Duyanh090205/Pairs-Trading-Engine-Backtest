@@ -1,0 +1,85 @@
+# Render.com deployment — Week 6 live paper trading dashboard (FREE tier).
+#
+# Setup:
+#   1. Push repo (PRIVATE) to GitHub. .env is gitignored — verify before push.
+#   2. Render dashboard → New → Blueprint → pick this repo → Apply.
+#   3. Render reads this file from REPO ROOT.
+#   4. Set 3 secret env vars manually in Render UI:
+#         ALPACA_API_KEY=...
+#         ALPACA_SECRET_KEY=...
+#         DISCORD_WEBHOOK_URL=...   (optional)
+#   5. Free tier sleeps after 15 min inactivity. Use UptimeRobot to ping
+#      `/api/health` every 5 minutes to keep it awake.
+#   6. (Optional) Upgrade to Starter $7/mo for always-on without ping.
+
+services:
+  - type: web
+    name: week6-paper-dashboard
+    runtime: python
+    region: oregon
+    # plan: starter   # Uncomment + add credit card for $7/mo always-on.
+                       # Default = free tier (sleeps after 15min, needs ping).
+
+    # Build runs in REPO ROOT, but our code lives in `Week 6/`. We cd into it
+    # for every step. The `--universe extended` pull is ~2 minutes; discovery
+    # is ~40s. Total build ~5-7 min.
+    buildCommand: |
+      cd "Week 6"
+      pip install -r requirements-live.txt
+      python scripts/build_live_daily_cache.py --universe extended
+      TOP_N=300 python scripts/select_top50_universe.py
+      python scripts/run_live_discovery.py \
+        --filter-tradable live/universe_top300.json \
+        --apply-ticker-cap \
+        --split-sample-gate 0.10
+
+    # Same cd trick for runtime. Uvicorn must bind to $PORT for Render.
+    startCommand: cd "Week 6" && uvicorn live.dashboard.server:app --host 0.0.0.0 --port $PORT
+
+    healthCheckPath: /api/health
+
+    # Persistent disk so SQLite state survives redeploys.
+    # NOTE: Free tier — disk allocation may have size limits; 1GB is generous.
+    disk:
+      name: state-disk
+      mountPath: /data
+      sizeGB: 1
+
+    envVars:
+      # Determinism — set BEFORE numpy import (uvicorn process inherits).
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: MKL_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+
+      # SQLite state on persistent disk (survives redeploys).
+      - key: STATE_DB_PATH
+        value: /data/live_state.db
+
+      # Alpaca paper config (locked).
+      - key: ALPACA_PAPER
+        value: "true"
+      - key: ALPACA_BASE_URL
+        value: https://paper-api.alpaca.markets
+      - key: ALPACA_DATA_URL
+        value: https://data.alpaca.markets
+
+      # Strategy (locked per backtest research).
+      - key: ENTRY_Z
+        value: "3.0"
+      - key: HARD_SL_Z
+        value: "5.0"
+      - key: BETA_CAP
+        value: "5.0"
+      - key: USE_COMPOSITE_FILTER
+        value: "true"
+
+      # SECRETS — set manually in Render UI. sync:false = do NOT commit.
+      - key: ALPACA_API_KEY
+        sync: false
+      - key: ALPACA_SECRET_KEY
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false

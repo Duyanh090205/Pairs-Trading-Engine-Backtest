@@ -1,0 +1,27 @@
+# Secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+
+# Live state (regenerable; large/binary)
+live/state/*.db
+live/state/*.db-journal
+live/state/*.db-wal
+live/state/*.db-shm
+live/logs/
+live/dashboard_screenshots/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Build / dist
+build/
+dist/
+*.parquet
+
+# IDE
+.vscode/
+.idea/

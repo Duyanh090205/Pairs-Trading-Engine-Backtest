@@ -1,0 +1,1509 @@
+{
+  "universe_size": 150,
+  "selection_date": "2026-05-27T06:08:22.377363+00:00",
+  "liquidity_window_days": 252,
+  "tickers": [
+    "SPY",
+    "TSLA",
+    "QQQ",
+    "NVDA",
+    "AAPL",
+    "PLTR",
+    "IWM",
+    "MSFT",
+    "AMZN",
+    "META",
+    "AMD",
+    "GOOGL",
+    "AVGO",
+    "MU",
+    "GLD",
+    "GOOG",
+    "ORCL",
+    "NFLX",
+    "UNH",
+    "HOOD",
+    "TLT",
+    "INTC",
+    "SNDK",
+    "SLV",
+    "COIN",
+    "LLY",
+    "APP",
+    "XLF",
+    "XLK",
+    "JPM",
+    "XLV",
+    "BRK.B",
+    "XLI",
+    "CRM",
+    "XLE",
+    "V",
+    "COST",
+    "WMT",
+    "XOM",
+    "GEV",
+    "BAC",
+    "BA",
+    "EEM",
+    "UBER",
+    "GS",
+    "SMCI",
+    "NOW",
+    "XLY",
+    "XLP",
+    "CRWD",
+    "MA",
+    "AMAT",
+    "ADBE",
+    "CVX",
+    "LRCX",
+    "CVNA",
+    "FXI",
+    "JNJ",
+    "PFE",
+    "CAT",
+    "GE",
+    "C",
+    "WFC",
+    "INTU",
+    "QCOM",
+    "CSCO",
+    "IBM",
+    "HD",
+    "PANW",
+    "XBI",
+    "PG",
+    "TXN",
+    "XLU",
+    "F",
+    "WDC",
+    "TMO",
+    "NKE",
+    "MRK",
+    "ACN",
+    "ABBV",
+    "USO",
+    "ANET",
+    "BKNG",
+    "DIS",
+    "KO",
+    "T",
+    "PEP",
+    "VZ",
+    "SNPS",
+    "TMUS",
+    "APH",
+    "KLAC",
+    "DASH",
+    "ISRG",
+    "STX",
+    "VST",
+    "PYPL",
+    "MCD",
+    "DELL",
+    "CEG",
+    "ETN",
+    "COF",
+    "MS",
+    "AXP",
+    "BSX",
+    "KWEB",
+    "SBUX",
+    "PM",
+    "WBD",
+    "NEM",
+    "FCX",
+    "LULU",
+    "ABT",
+    "SCHW",
+    "LIN",
+    "ADI",
+    "DHR",
+    "UNP",
+    "XLC",
+    "CMCSA",
+    "LMT",
+    "CMG",
+    "RTX",
+    "NEE",
+    "GILD",
+    "PGR",
+    "XLB",
+    "SPGI",
+    "TGT",
+    "HON",
+    "DDOG",
+    "COP",
+    "AMGN",
+    "BX",
+    "TTD",
+    "DE",
+    "UAL",
+    "UPS",
+    "WDAY",
+    "RCL",
+    "FSLR",
+    "CCL",
+    "BMY",
+    "SLB",
+    "MDT",
+    "VRTX",
+    "ELV",
+    "TJX",
+    "BLK",
+    "GLW"
+  ],
+  "stats": [
+    {
+      "ticker": "SPY",
+      "avg_dollar_volume_usd": 39158746735.02595,
+      "median_dollar_volume_usd": 36189671109.752396,
+      "last_price_usd": 660.2149999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 1
+    },
+    {
+      "ticker": "TSLA",
+      "avg_dollar_volume_usd": 27286869076.60574,
+      "median_dollar_volume_usd": 25751430562.4828,
+      "last_price_usd": 380.94500000000016,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 2
+    },
+    {
+      "ticker": "QQQ",
+      "avg_dollar_volume_usd": 25598652429.172848,
+      "median_dollar_volume_usd": 23390457264.825,
+      "last_price_usd": 593.4300000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 3
+    },
+    {
+      "ticker": "NVDA",
+      "avg_dollar_volume_usd": 24449115024.37005,
+      "median_dollar_volume_usd": 22983865521.96541,
+      "last_price_usd": 178.87899999999993,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 4
+    },
+    {
+      "ticker": "AAPL",
+      "avg_dollar_volume_usd": 8045268285.4272585,
+      "median_dollar_volume_usd": 7137102513.240002,
+      "last_price_usd": 249.15999999999994,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 5
+    },
+    {
+      "ticker": "PLTR",
+      "avg_dollar_volume_usd": 7820425073.491015,
+      "median_dollar_volume_usd": 7174212068.715001,
+      "last_price_usd": 155.43499999999997,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 6
+    },
+    {
+      "ticker": "IWM",
+      "avg_dollar_volume_usd": 7468413900.437429,
+      "median_dollar_volume_usd": 6713901300.889999,
+      "last_price_usd": 247.89499999999995,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 7
+    },
+    {
+      "ticker": "MSFT",
+      "avg_dollar_volume_usd": 7138181085.076325,
+      "median_dollar_volume_usd": 6307167617.947879,
+      "last_price_usd": 389.1800000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 8
+    },
+    {
+      "ticker": "AMZN",
+      "avg_dollar_volume_usd": 7136188137.363486,
+      "median_dollar_volume_usd": 6386694684.438911,
+      "last_price_usd": 208.89999999999995,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 9
+    },
+    {
+      "ticker": "META",
+      "avg_dollar_volume_usd": 7090136988.711166,
+      "median_dollar_volume_usd": 6049435472.117499,
+      "last_price_usd": 606.3499999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 966,
+      "rank": 10
+    },
+    {
+      "ticker": "AMD",
+      "avg_dollar_volume_usd": 6678687607.84511,
+      "median_dollar_volume_usd": 5356732934.9653,
+      "last_price_usd": 205.42499999999995,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 11
+    },
+    {
+      "ticker": "GOOGL",
+      "avg_dollar_volume_usd": 6063017612.439416,
+      "median_dollar_volume_usd": 5493209524.9879675,
+      "last_price_usd": 307.2599999999999,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 12
+    },
+    {
+      "ticker": "AVGO",
+      "avg_dollar_volume_usd": 4985697078.521352,
+      "median_dollar_volume_usd": 4179956153.1799994,
+      "last_price_usd": 320.12000000000006,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 13
+    },
+    {
+      "ticker": "MU",
+      "avg_dollar_volume_usd": 4492376151.039599,
+      "median_dollar_volume_usd": 2780425978.6500006,
+      "last_price_usd": 445.0401000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 14
+    },
+    {
+      "ticker": "GLD",
+      "avg_dollar_volume_usd": 4386273656.519338,
+      "median_dollar_volume_usd": 3456619213.5674996,
+      "last_price_usd": 426.57,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 15
+    },
+    {
+      "ticker": "GOOG",
+      "avg_dollar_volume_usd": 3862591233.0860896,
+      "median_dollar_volume_usd": 3487932129.1099997,
+      "last_price_usd": 305.96999999999997,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 16
+    },
+    {
+      "ticker": "ORCL",
+      "avg_dollar_volume_usd": 3331480975.956222,
+      "median_dollar_volume_usd": 2615875358.9430895,
+      "last_price_usd": 155.79,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 17
+    },
+    {
+      "ticker": "NFLX",
+      "avg_dollar_volume_usd": 3182728073.309672,
+      "median_dollar_volume_usd": 2787241343.8999996,
+      "last_price_usd": 91.78499999999997,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 18
+    },
+    {
+      "ticker": "UNH",
+      "avg_dollar_volume_usd": 3042426285.429304,
+      "median_dollar_volume_usd": 2275915851.94,
+      "last_price_usd": 281.50499999999994,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 19
+    },
+    {
+      "ticker": "HOOD",
+      "avg_dollar_volume_usd": 2747683052.8357105,
+      "median_dollar_volume_usd": 2393490891.41,
+      "last_price_usd": 74.08999999999999,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 20
+    },
+    {
+      "ticker": "TLT",
+      "avg_dollar_volume_usd": 2470741300.737976,
+      "median_dollar_volume_usd": 2312591580.3724995,
+      "last_price_usd": 87.53499999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 21
+    },
+    {
+      "ticker": "INTC",
+      "avg_dollar_volume_usd": 2444958458.352043,
+      "median_dollar_volume_usd": 1987409784.2199998,
+      "last_price_usd": 46.14500000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 22
+    },
+    {
+      "ticker": "SNDK",
+      "avg_dollar_volume_usd": 2415148927.1217217,
+      "median_dollar_volume_usd": 476821209.8599999,
+      "last_price_usd": 771.6900000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 269,
+      "rank": 23
+    },
+    {
+      "ticker": "SLV",
+      "avg_dollar_volume_usd": 2412475245.390411,
+      "median_dollar_volume_usd": 945973148.0699999,
+      "last_price_usd": 65.58000000000003,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 24
+    },
+    {
+      "ticker": "COIN",
+      "avg_dollar_volume_usd": 2392004689.0235143,
+      "median_dollar_volume_usd": 1958469791.6199996,
+      "last_price_usd": 202.80000000000007,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 25
+    },
+    {
+      "ticker": "LLY",
+      "avg_dollar_volume_usd": 2286457250.237118,
+      "median_dollar_volume_usd": 1920839339.4599993,
+      "last_price_usd": 917.7,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 26
+    },
+    {
+      "ticker": "APP",
+      "avg_dollar_volume_usd": 2223112173.184668,
+      "median_dollar_volume_usd": 1954962231.303,
+      "last_price_usd": 439.76000000000005,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 27
+    },
+    {
+      "ticker": "XLF",
+      "avg_dollar_volume_usd": 1907958808.831838,
+      "median_dollar_volume_usd": 1725035262.3250003,
+      "last_price_usd": 48.989999999999995,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 28
+    },
+    {
+      "ticker": "XLK",
+      "avg_dollar_volume_usd": 1832547992.215401,
+      "median_dollar_volume_usd": 1633012732.3184187,
+      "last_price_usd": 138.53000000000003,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 29
+    },
+    {
+      "ticker": "JPM",
+      "avg_dollar_volume_usd": 1707588607.067889,
+      "median_dollar_volume_usd": 1513154226.5975,
+      "last_price_usd": 288.05999999999995,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 30
+    },
+    {
+      "ticker": "XLV",
+      "avg_dollar_volume_usd": 1634738517.913201,
+      "median_dollar_volume_usd": 1595312945.925,
+      "last_price_usd": 146.76499999999993,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 31
+    },
+    {
+      "ticker": "BRK.B",
+      "avg_dollar_volume_usd": 1555612623.042916,
+      "median_dollar_volume_usd": 1422504097.665,
+      "last_price_usd": 481.3199999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 32
+    },
+    {
+      "ticker": "XLI",
+      "avg_dollar_volume_usd": 1536447158.4180403,
+      "median_dollar_volume_usd": 1434445561.6574998,
+      "last_price_usd": 164.03999999999994,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 33
+    },
+    {
+      "ticker": "CRM",
+      "avg_dollar_volume_usd": 1512383963.5959153,
+      "median_dollar_volume_usd": 1331057355.5320425,
+      "last_price_usd": 195.05500000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 34
+    },
+    {
+      "ticker": "XLE",
+      "avg_dollar_volume_usd": 1510992083.7531457,
+      "median_dollar_volume_usd": 1144608092.1550002,
+      "last_price_usd": 59.43000000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 35
+    },
+    {
+      "ticker": "V",
+      "avg_dollar_volume_usd": 1437323659.8339307,
+      "median_dollar_volume_usd": 1283321256.9600003,
+      "last_price_usd": 299.9400000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 36
+    },
+    {
+      "ticker": "COST",
+      "avg_dollar_volume_usd": 1409632048.372274,
+      "median_dollar_volume_usd": 1253082393.33,
+      "last_price_usd": 975.1400000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 37
+    },
+    {
+      "ticker": "WMT",
+      "avg_dollar_volume_usd": 1399282219.982596,
+      "median_dollar_volume_usd": 1178790304.2825003,
+      "last_price_usd": 121.06000000000003,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 38
+    },
+    {
+      "ticker": "XOM",
+      "avg_dollar_volume_usd": 1368397517.4448755,
+      "median_dollar_volume_usd": 1184343314.4975,
+      "last_price_usd": 158.54,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 39
+    },
+    {
+      "ticker": "GEV",
+      "avg_dollar_volume_usd": 1332141861.4982994,
+      "median_dollar_volume_usd": 1169541805.1349998,
+      "last_price_usd": 874.3499999999997,
+      "last_date": "2026-03-19",
+      "bars_total": 493,
+      "rank": 40
+    },
+    {
+      "ticker": "BAC",
+      "avg_dollar_volume_usd": 1329538572.4162083,
+      "median_dollar_volume_usd": 1219133910.9074998,
+      "last_price_usd": 46.955,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 41
+    },
+    {
+      "ticker": "BA",
+      "avg_dollar_volume_usd": 1314248082.4246438,
+      "median_dollar_volume_usd": 1151282744.4300003,
+      "last_price_usd": 201.24000000000007,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 42
+    },
+    {
+      "ticker": "EEM",
+      "avg_dollar_volume_usd": 1289885634.2699957,
+      "median_dollar_volume_usd": 1067273555.9,
+      "last_price_usd": 57.595,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 43
+    },
+    {
+      "ticker": "UBER",
+      "avg_dollar_volume_usd": 1258202326.4557133,
+      "median_dollar_volume_usd": 1137191108.9935,
+      "last_price_usd": 75.57500000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 44
+    },
+    {
+      "ticker": "GS",
+      "avg_dollar_volume_usd": 1166673957.8766682,
+      "median_dollar_volume_usd": 1038424715.1599998,
+      "last_price_usd": 810.8799999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 45
+    },
+    {
+      "ticker": "SMCI",
+      "avg_dollar_volume_usd": 1161103968.6198092,
+      "median_dollar_volume_usd": 968921144.4325,
+      "last_price_usd": 30.760000000000005,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 46
+    },
+    {
+      "ticker": "NOW",
+      "avg_dollar_volume_usd": 1152367873.2271292,
+      "median_dollar_volume_usd": 967770110.8799999,
+      "last_price_usd": 113.33,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 47
+    },
+    {
+      "ticker": "XLY",
+      "avg_dollar_volume_usd": 1085973515.4182796,
+      "median_dollar_volume_usd": 1031250349.8590426,
+      "last_price_usd": 109.83000000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 48
+    },
+    {
+      "ticker": "XLP",
+      "avg_dollar_volume_usd": 1081907263.0868874,
+      "median_dollar_volume_usd": 951988791.3925002,
+      "last_price_usd": 82.04500000000003,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 49
+    },
+    {
+      "ticker": "CRWD",
+      "avg_dollar_volume_usd": 1062323925.4809504,
+      "median_dollar_volume_usd": 903917439.8000001,
+      "last_price_usd": 428.37000000000006,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 50
+    },
+    {
+      "ticker": "MA",
+      "avg_dollar_volume_usd": 1062015101.4363655,
+      "median_dollar_volume_usd": 957989627.5799997,
+      "last_price_usd": 491.74999999999983,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 51
+    },
+    {
+      "ticker": "AMAT",
+      "avg_dollar_volume_usd": 1052806550.649256,
+      "median_dollar_volume_usd": 971970071.6375003,
+      "last_price_usd": 357.25999999999993,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 52
+    },
+    {
+      "ticker": "ADBE",
+      "avg_dollar_volume_usd": 1050230866.9719226,
+      "median_dollar_volume_usd": 945408317.0715711,
+      "last_price_usd": 246.32000000000008,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 53
+    },
+    {
+      "ticker": "CVX",
+      "avg_dollar_volume_usd": 1036744321.470789,
+      "median_dollar_volume_usd": 873330635.4199998,
+      "last_price_usd": 201.58000000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 54
+    },
+    {
+      "ticker": "LRCX",
+      "avg_dollar_volume_usd": 991329178.9395106,
+      "median_dollar_volume_usd": 861649680.6774997,
+      "last_price_usd": 234.15000000000006,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 55
+    },
+    {
+      "ticker": "CVNA",
+      "avg_dollar_volume_usd": 979336950.6157266,
+      "median_dollar_volume_usd": 827622799.4199997,
+      "last_price_usd": 295.07,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 56
+    },
+    {
+      "ticker": "FXI",
+      "avg_dollar_volume_usd": 977912540.9963514,
+      "median_dollar_volume_usd": 878519015.0250001,
+      "last_price_usd": 36.185,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 57
+    },
+    {
+      "ticker": "JNJ",
+      "avg_dollar_volume_usd": 974013512.3178257,
+      "median_dollar_volume_usd": 900910655.9949999,
+      "last_price_usd": 237.81000000000006,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 58
+    },
+    {
+      "ticker": "PFE",
+      "avg_dollar_volume_usd": 969453960.409148,
+      "median_dollar_volume_usd": 833348156.0075,
+      "last_price_usd": 27.494999999999997,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 59
+    },
+    {
+      "ticker": "CAT",
+      "avg_dollar_volume_usd": 946143687.7152847,
+      "median_dollar_volume_usd": 848544189.6050003,
+      "last_price_usd": 689.12,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 60
+    },
+    {
+      "ticker": "GE",
+      "avg_dollar_volume_usd": 941671449.7905475,
+      "median_dollar_volume_usd": 838381311.0750003,
+      "last_price_usd": 291.6749999999999,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 61
+    },
+    {
+      "ticker": "C",
+      "avg_dollar_volume_usd": 936865381.7493488,
+      "median_dollar_volume_usd": 856194404.5925,
+      "last_price_usd": 109.90000000000005,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 62
+    },
+    {
+      "ticker": "WFC",
+      "avg_dollar_volume_usd": 919971226.3410555,
+      "median_dollar_volume_usd": 871345232.5875001,
+      "last_price_usd": 76.28000000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 63
+    },
+    {
+      "ticker": "INTU",
+      "avg_dollar_volume_usd": 918504084.5601794,
+      "median_dollar_volume_usd": 792599033.7700002,
+      "last_price_usd": 456.0600000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 64
+    },
+    {
+      "ticker": "QCOM",
+      "avg_dollar_volume_usd": 908966818.816328,
+      "median_dollar_volume_usd": 775821763.1800001,
+      "last_price_usd": 131.30499999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 65
+    },
+    {
+      "ticker": "CSCO",
+      "avg_dollar_volume_usd": 900565358.016457,
+      "median_dollar_volume_usd": 776158564.0124999,
+      "last_price_usd": 78.54999999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 66
+    },
+    {
+      "ticker": "IBM",
+      "avg_dollar_volume_usd": 897396788.6123003,
+      "median_dollar_volume_usd": 718005235.1657442,
+      "last_price_usd": 249.78000000000006,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 67
+    },
+    {
+      "ticker": "HD",
+      "avg_dollar_volume_usd": 889798585.7525338,
+      "median_dollar_volume_usd": 808661387.7849998,
+      "last_price_usd": 328.4400000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 68
+    },
+    {
+      "ticker": "PANW",
+      "avg_dollar_volume_usd": 889548482.4194254,
+      "median_dollar_volume_usd": 707461222.5000002,
+      "last_price_usd": 169.88,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 69
+    },
+    {
+      "ticker": "XBI",
+      "avg_dollar_volume_usd": 887586253.721846,
+      "median_dollar_volume_usd": 836685256.8960001,
+      "last_price_usd": 122.41000000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 70
+    },
+    {
+      "ticker": "PG",
+      "avg_dollar_volume_usd": 862828799.5536873,
+      "median_dollar_volume_usd": 782318762.8499999,
+      "last_price_usd": 144.87000000000003,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 71
+    },
+    {
+      "ticker": "TXN",
+      "avg_dollar_volume_usd": 854567193.6293868,
+      "median_dollar_volume_usd": 750715359.4424996,
+      "last_price_usd": 188.36999999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 72
+    },
+    {
+      "ticker": "XLU",
+      "avg_dollar_volume_usd": 852361331.324788,
+      "median_dollar_volume_usd": 791132164.1325002,
+      "last_price_usd": 46.525000000000006,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 73
+    },
+    {
+      "ticker": "F",
+      "avg_dollar_volume_usd": 849695845.9595342,
+      "median_dollar_volume_usd": 718479320.7750001,
+      "last_price_usd": 11.655000000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 74
+    },
+    {
+      "ticker": "WDC",
+      "avg_dollar_volume_usd": 848911735.8308493,
+      "median_dollar_volume_usd": 565344308.5649998,
+      "last_price_usd": 317.28999999999996,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 75
+    },
+    {
+      "ticker": "TMO",
+      "avg_dollar_volume_usd": 823396384.522862,
+      "median_dollar_volume_usd": 763993041.56,
+      "last_price_usd": 470.39000000000016,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 76
+    },
+    {
+      "ticker": "NKE",
+      "avg_dollar_volume_usd": 810710048.9086398,
+      "median_dollar_volume_usd": 667652907.8774998,
+      "last_price_usd": 53.495,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 77
+    },
+    {
+      "ticker": "MRK",
+      "avg_dollar_volume_usd": 809637543.9334673,
+      "median_dollar_volume_usd": 712029758.02,
+      "last_price_usd": 114.30000000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 78
+    },
+    {
+      "ticker": "ACN",
+      "avg_dollar_volume_usd": 808998132.4535507,
+      "median_dollar_volume_usd": 711813514.6875,
+      "last_price_usd": 203.2299999999999,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 79
+    },
+    {
+      "ticker": "ABBV",
+      "avg_dollar_volume_usd": 807124048.5530018,
+      "median_dollar_volume_usd": 718435564.6837499,
+      "last_price_usd": 205.94000000000005,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 80
+    },
+    {
+      "ticker": "USO",
+      "avg_dollar_volume_usd": 782511907.3052922,
+      "median_dollar_volume_usd": 323723696.2968001,
+      "last_price_usd": 117.54010000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 81
+    },
+    {
+      "ticker": "ANET",
+      "avg_dollar_volume_usd": 766743834.7309391,
+      "median_dollar_volume_usd": 682615454.9055691,
+      "last_price_usd": 136.26500000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 82
+    },
+    {
+      "ticker": "BKNG",
+      "avg_dollar_volume_usd": 760613243.9246475,
+      "median_dollar_volume_usd": 583889539.3850003,
+      "last_price_usd": 4298.774999999997,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 83
+    },
+    {
+      "ticker": "DIS",
+      "avg_dollar_volume_usd": 758350964.472442,
+      "median_dollar_volume_usd": 659033891.8149999,
+      "last_price_usd": 99.41000000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 84
+    },
+    {
+      "ticker": "KO",
+      "avg_dollar_volume_usd": 751186437.9877684,
+      "median_dollar_volume_usd": 674729816.3900001,
+      "last_price_usd": 75.63999999999999,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 85
+    },
+    {
+      "ticker": "T",
+      "avg_dollar_volume_usd": 735548504.6175185,
+      "median_dollar_volume_usd": 626097112.565,
+      "last_price_usd": 27.814999999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 86
+    },
+    {
+      "ticker": "PEP",
+      "avg_dollar_volume_usd": 716295359.5745629,
+      "median_dollar_volume_usd": 650603792.7449999,
+      "last_price_usd": 152.78000000000006,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 87
+    },
+    {
+      "ticker": "VZ",
+      "avg_dollar_volume_usd": 713015773.3162975,
+      "median_dollar_volume_usd": 610085245.885,
+      "last_price_usd": 49.495000000000005,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 88
+    },
+    {
+      "ticker": "SNPS",
+      "avg_dollar_volume_usd": 705191135.4553415,
+      "median_dollar_volume_usd": 547802269.6575,
+      "last_price_usd": 428.60500000000013,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 89
+    },
+    {
+      "ticker": "TMUS",
+      "avg_dollar_volume_usd": 701455859.1211783,
+      "median_dollar_volume_usd": 632301518.1149999,
+      "last_price_usd": 206.72999999999996,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 90
+    },
+    {
+      "ticker": "APH",
+      "avg_dollar_volume_usd": 696445853.4637151,
+      "median_dollar_volume_usd": 608686650.0626237,
+      "last_price_usd": 130.4466,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 91
+    },
+    {
+      "ticker": "KLAC",
+      "avg_dollar_volume_usd": 690370928.3834485,
+      "median_dollar_volume_usd": 589305300.27,
+      "last_price_usd": 1512.3999999999994,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 92
+    },
+    {
+      "ticker": "DASH",
+      "avg_dollar_volume_usd": 688171787.0350759,
+      "median_dollar_volume_usd": 582042887.4424999,
+      "last_price_usd": 159.42000000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 93
+    },
+    {
+      "ticker": "ISRG",
+      "avg_dollar_volume_usd": 682988543.9957113,
+      "median_dollar_volume_usd": 608102056.3250003,
+      "last_price_usd": 479.7200000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 94
+    },
+    {
+      "ticker": "STX",
+      "avg_dollar_volume_usd": 681346158.7283571,
+      "median_dollar_volume_usd": 528622206.1575,
+      "last_price_usd": 434.2699999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 95
+    },
+    {
+      "ticker": "VST",
+      "avg_dollar_volume_usd": 677371021.8735424,
+      "median_dollar_volume_usd": 601269528.105,
+      "last_price_usd": 167.75499999999997,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 96
+    },
+    {
+      "ticker": "PYPL",
+      "avg_dollar_volume_usd": 673846485.7063282,
+      "median_dollar_volume_usd": 536537363.44500005,
+      "last_price_usd": 44.29500000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 97
+    },
+    {
+      "ticker": "MCD",
+      "avg_dollar_volume_usd": 669426212.5260432,
+      "median_dollar_volume_usd": 612219257.0599998,
+      "last_price_usd": 310.2700000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 98
+    },
+    {
+      "ticker": "DELL",
+      "avg_dollar_volume_usd": 663873998.0244751,
+      "median_dollar_volume_usd": 571212512.2149999,
+      "last_price_usd": 156.89500000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 99
+    },
+    {
+      "ticker": "CEG",
+      "avg_dollar_volume_usd": 653236628.3372365,
+      "median_dollar_volume_usd": 581304735.9299998,
+      "last_price_usd": 316.55,
+      "last_date": "2026-03-19",
+      "bars_total": 1035,
+      "rank": 100
+    },
+    {
+      "ticker": "ETN",
+      "avg_dollar_volume_usd": 649955508.9577612,
+      "median_dollar_volume_usd": 579487641.4499998,
+      "last_price_usd": 359.9400000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 101
+    },
+    {
+      "ticker": "COF",
+      "avg_dollar_volume_usd": 647501733.2338662,
+      "median_dollar_volume_usd": 546602549.2099999,
+      "last_price_usd": 179.71500000000003,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 102
+    },
+    {
+      "ticker": "MS",
+      "avg_dollar_volume_usd": 639305519.6925277,
+      "median_dollar_volume_usd": 558875734.1775,
+      "last_price_usd": 158.70000000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 103
+    },
+    {
+      "ticker": "AXP",
+      "avg_dollar_volume_usd": 638949995.9703221,
+      "median_dollar_volume_usd": 564681818.79,
+      "last_price_usd": 295.30999999999995,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 104
+    },
+    {
+      "ticker": "BSX",
+      "avg_dollar_volume_usd": 637256692.3959752,
+      "median_dollar_volume_usd": 546584120.7975003,
+      "last_price_usd": 70.14000000000003,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 105
+    },
+    {
+      "ticker": "KWEB",
+      "avg_dollar_volume_usd": 629585783.8641357,
+      "median_dollar_volume_usd": 561272872.4922762,
+      "last_price_usd": 29.075000000000003,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 106
+    },
+    {
+      "ticker": "SBUX",
+      "avg_dollar_volume_usd": 628945492.8291125,
+      "median_dollar_volume_usd": 555280756.5000002,
+      "last_price_usd": 95.88500000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 107
+    },
+    {
+      "ticker": "PM",
+      "avg_dollar_volume_usd": 624288588.0221677,
+      "median_dollar_volume_usd": 555245433.5850002,
+      "last_price_usd": 163.47999999999993,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 108
+    },
+    {
+      "ticker": "WBD",
+      "avg_dollar_volume_usd": 618051436.0995052,
+      "median_dollar_volume_usd": 483532333.975,
+      "last_price_usd": 27.635000000000005,
+      "last_date": "2026-03-19",
+      "bars_total": 988,
+      "rank": 109
+    },
+    {
+      "ticker": "NEM",
+      "avg_dollar_volume_usd": 605674851.5231028,
+      "median_dollar_volume_usd": 552638651.6325002,
+      "last_price_usd": 98.72999999999999,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 110
+    },
+    {
+      "ticker": "FCX",
+      "avg_dollar_volume_usd": 593021868.1218325,
+      "median_dollar_volume_usd": 466307229.0575,
+      "last_price_usd": 53.535000000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 111
+    },
+    {
+      "ticker": "LULU",
+      "avg_dollar_volume_usd": 591979483.4345015,
+      "median_dollar_volume_usd": 478317113.91985,
+      "last_price_usd": 165.53999999999996,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 112
+    },
+    {
+      "ticker": "ABT",
+      "avg_dollar_volume_usd": 584501019.9475121,
+      "median_dollar_volume_usd": 474047165.14,
+      "last_price_usd": 107.33999999999996,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 113
+    },
+    {
+      "ticker": "SCHW",
+      "avg_dollar_volume_usd": 580799690.7363763,
+      "median_dollar_volume_usd": 518026676.425,
+      "last_price_usd": 93.84000000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 114
+    },
+    {
+      "ticker": "LIN",
+      "avg_dollar_volume_usd": 578810803.40488,
+      "median_dollar_volume_usd": 504283332.84000003,
+      "last_price_usd": 490.07000000000016,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 115
+    },
+    {
+      "ticker": "ADI",
+      "avg_dollar_volume_usd": 576742693.0269464,
+      "median_dollar_volume_usd": 489555673.18500006,
+      "last_price_usd": 309.98500000000007,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 116
+    },
+    {
+      "ticker": "DHR",
+      "avg_dollar_volume_usd": 564027678.464352,
+      "median_dollar_volume_usd": 496345637.93000007,
+      "last_price_usd": 190.66,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 117
+    },
+    {
+      "ticker": "UNP",
+      "avg_dollar_volume_usd": 560738060.4905058,
+      "median_dollar_volume_usd": 494892983.772723,
+      "last_price_usd": 234.57999999999993,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 118
+    },
+    {
+      "ticker": "XLC",
+      "avg_dollar_volume_usd": 560084449.880746,
+      "median_dollar_volume_usd": 510506413.62000006,
+      "last_price_usd": 113.26000000000003,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 119
+    },
+    {
+      "ticker": "CMCSA",
+      "avg_dollar_volume_usd": 558454399.5345522,
+      "median_dollar_volume_usd": 492042516.6528125,
+      "last_price_usd": 29.034999999999997,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 120
+    },
+    {
+      "ticker": "LMT",
+      "avg_dollar_volume_usd": 558067825.6254023,
+      "median_dollar_volume_usd": 468529756.1175,
+      "last_price_usd": 635.6649999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 121
+    },
+    {
+      "ticker": "CMG",
+      "avg_dollar_volume_usd": 549292053.1852756,
+      "median_dollar_volume_usd": 485513560.53834736,
+      "last_price_usd": 33.065000000000005,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 122
+    },
+    {
+      "ticker": "RTX",
+      "avg_dollar_volume_usd": 545495534.4909714,
+      "median_dollar_volume_usd": 456333534.1874999,
+      "last_price_usd": 200.28999999999996,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 123
+    },
+    {
+      "ticker": "NEE",
+      "avg_dollar_volume_usd": 544082900.4417299,
+      "median_dollar_volume_usd": 476135429.0217278,
+      "last_price_usd": 92.21499999999997,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 124
+    },
+    {
+      "ticker": "GILD",
+      "avg_dollar_volume_usd": 540946643.5938687,
+      "median_dollar_volume_usd": 481793831.53,
+      "last_price_usd": 141.26500000000001,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 125
+    },
+    {
+      "ticker": "PGR",
+      "avg_dollar_volume_usd": 525591133.69993275,
+      "median_dollar_volume_usd": 472249538.595,
+      "last_price_usd": 202.03999999999996,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 126
+    },
+    {
+      "ticker": "XLB",
+      "avg_dollar_volume_usd": 523275394.2474251,
+      "median_dollar_volume_usd": 468093332.9175001,
+      "last_price_usd": 47.73499999999999,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 127
+    },
+    {
+      "ticker": "SPGI",
+      "avg_dollar_volume_usd": 519224321.6620905,
+      "median_dollar_volume_usd": 419617645.7199999,
+      "last_price_usd": 426.36,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 128
+    },
+    {
+      "ticker": "TGT",
+      "avg_dollar_volume_usd": 517498890.3186458,
+      "median_dollar_volume_usd": 451193046.50999975,
+      "last_price_usd": 114.98,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 129
+    },
+    {
+      "ticker": "HON",
+      "avg_dollar_volume_usd": 513347746.0483211,
+      "median_dollar_volume_usd": 463568528.1174999,
+      "last_price_usd": 229.04000000000008,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 130
+    },
+    {
+      "ticker": "DDOG",
+      "avg_dollar_volume_usd": 512256321.4709833,
+      "median_dollar_volume_usd": 422751168.8300001,
+      "last_price_usd": 129.93500000000006,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 131
+    },
+    {
+      "ticker": "COP",
+      "avg_dollar_volume_usd": 502388873.31720155,
+      "median_dollar_volume_usd": 450849691.97749984,
+      "last_price_usd": 125.97999999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 132
+    },
+    {
+      "ticker": "AMGN",
+      "avg_dollar_volume_usd": 498795805.03129715,
+      "median_dollar_volume_usd": 450978707.50051546,
+      "last_price_usd": 349.87999999999994,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 133
+    },
+    {
+      "ticker": "BX",
+      "avg_dollar_volume_usd": 494692839.8946393,
+      "median_dollar_volume_usd": 403241767.9599999,
+      "last_price_usd": 113.54,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 134
+    },
+    {
+      "ticker": "TTD",
+      "avg_dollar_volume_usd": 492171574.2304677,
+      "median_dollar_volume_usd": 369110779.99249995,
+      "last_price_usd": 23.51,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 135
+    },
+    {
+      "ticker": "DE",
+      "avg_dollar_volume_usd": 491646736.98922163,
+      "median_dollar_volume_usd": 421620433.98000014,
+      "last_price_usd": 566.96,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 136
+    },
+    {
+      "ticker": "UAL",
+      "avg_dollar_volume_usd": 474961503.3440017,
+      "median_dollar_volume_usd": 435209850.17499995,
+      "last_price_usd": 94.05999999999997,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 137
+    },
+    {
+      "ticker": "UPS",
+      "avg_dollar_volume_usd": 473503277.8609214,
+      "median_dollar_volume_usd": 417509091.3125,
+      "last_price_usd": 96.54000000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 138
+    },
+    {
+      "ticker": "WDAY",
+      "avg_dollar_volume_usd": 472007770.01414007,
+      "median_dollar_volume_usd": 381989875.19500005,
+      "last_price_usd": 133.41999999999993,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 139
+    },
+    {
+      "ticker": "RCL",
+      "avg_dollar_volume_usd": 470919530.03774434,
+      "median_dollar_volume_usd": 427053315.4405511,
+      "last_price_usd": 272.71000000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 140
+    },
+    {
+      "ticker": "FSLR",
+      "avg_dollar_volume_usd": 467486925.7727079,
+      "median_dollar_volume_usd": 375666328.63,
+      "last_price_usd": 199.54000000000005,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 141
+    },
+    {
+      "ticker": "CCL",
+      "avg_dollar_volume_usd": 465695334.54334646,
+      "median_dollar_volume_usd": 407389151.3,
+      "last_price_usd": 24.945,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 142
+    },
+    {
+      "ticker": "BMY",
+      "avg_dollar_volume_usd": 462634485.06986696,
+      "median_dollar_volume_usd": 422755404.79249996,
+      "last_price_usd": 58.32499999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 143
+    },
+    {
+      "ticker": "SLB",
+      "avg_dollar_volume_usd": 460775364.64560264,
+      "median_dollar_volume_usd": 385321632.475,
+      "last_price_usd": 47.73499999999999,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 144
+    },
+    {
+      "ticker": "MDT",
+      "avg_dollar_volume_usd": 455329407.5184475,
+      "median_dollar_volume_usd": 416937872.202738,
+      "last_price_usd": 86.84500000000003,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 145
+    },
+    {
+      "ticker": "VRTX",
+      "avg_dollar_volume_usd": 454603400.7430009,
+      "median_dollar_volume_usd": 382427950.20500004,
+      "last_price_usd": 457.7099999999998,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 146
+    },
+    {
+      "ticker": "ELV",
+      "avg_dollar_volume_usd": 452882969.20206726,
+      "median_dollar_volume_usd": 382606282.72999996,
+      "last_price_usd": 292.1049999999999,
+      "last_date": "2026-03-19",
+      "bars_total": 935,
+      "rank": 147
+    },
+    {
+      "ticker": "TJX",
+      "avg_dollar_volume_usd": 452454437.8101882,
+      "median_dollar_volume_usd": 402764574.79499984,
+      "last_price_usd": 154.89000000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 148
+    },
+    {
+      "ticker": "BLK",
+      "avg_dollar_volume_usd": 447925504.7040003,
+      "median_dollar_volume_usd": 378414419.4348,
+      "last_price_usd": 968.9050000000002,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 149
+    },
+    {
+      "ticker": "GLW",
+      "avg_dollar_volume_usd": 447750546.876503,
+      "median_dollar_volume_usd": 295770501.40250003,
+      "last_price_usd": 132.96000000000004,
+      "last_date": "2026-03-19",
+      "bars_total": 1056,
+      "rank": 150
+    }
+  ]
+}

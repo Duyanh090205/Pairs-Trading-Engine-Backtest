@@ -1,0 +1,16 @@
+{
+  "decided_ts": "2026-05-27T16:36:54.262329+00:00",
+  "formation_end": "2026-05-27",
+  "formation_bars_per_ticker": 252,
+  "n_universe_tickers": 528,
+  "tradable_universe_file": "live/universe_top300.json",
+  "n_factor_tickers": 525,
+  "n_factor_components": 5,
+  "cumulative_variance_explained": 0.3563428680894641,
+  "n_pairs": 16,
+  "hl_min": 5.0,
+  "hl_max": 30.0,
+  "ticker_cap_applied": true,
+  "split_sample_gate_p_thresh": 0.1,
+  "total_elapsed_s": 37.364919900894165
+}
