@@ -174,6 +174,115 @@ async def force_decision_now(request: Request):
     }
 
 
+@app.post("/api/admin/recover_after_status_bug")
+async def recover_after_status_bug(request: Request):
+    """One-shot recovery after the 'OrderStatus.FILLED' vs 'filled' bug.
+
+    Steps:
+      1. Normalize all `orders.status` values to schema-canonical lowercase.
+      2. Backfill `positions` table from any pair with both legs filled but no
+         open position row.
+      3. Clear the kill_switch halt (which was tripped by reconcile mismatch).
+
+    Idempotent — safe to call multiple times.
+    Auth via X-Admin-Token header (same as force_decision_now).
+    """
+    from datetime import datetime, timezone
+
+    token_expected = os.environ.get("ADMIN_TOKEN")
+    if not token_expected:
+        return JSONResponse({"error": "ADMIN_TOKEN not configured"}, status_code=503)
+    if request.headers.get("X-Admin-Token", "") != token_expected:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+
+    try:
+        from live.execution.order_manager import normalize_status
+        from live.state.persist import clear_halt, log_event
+    except Exception as e:
+        return JSONResponse({"error": f"import failed: {e}"}, status_code=500)
+
+    summary: dict = {"updated_rows": 0, "positions_inserted": 0, "halt_cleared": False}
+    try:
+        with _conn() as conn:
+            # 1. Migrate existing status strings
+            rows = conn.execute(
+                "SELECT client_order_id, status FROM orders"
+            ).fetchall()
+            for r in rows:
+                norm = normalize_status(r["status"])
+                if norm != r["status"]:
+                    conn.execute(
+                        "UPDATE orders SET status = ? WHERE client_order_id = ?",
+                        (norm, r["client_order_id"]),
+                    )
+                    summary["updated_rows"] += 1
+
+            # 2. Backfill positions for pair_id + bar_ts groups where both legs
+            #    are filled but no open position exists.
+            filled_groups = conn.execute(
+                "SELECT pair_id, bar_ts, COUNT(*) AS n_legs "
+                "FROM orders WHERE status = 'filled' "
+                "GROUP BY pair_id, bar_ts HAVING COUNT(*) >= 2"
+            ).fetchall()
+            for g in filled_groups:
+                exists = conn.execute(
+                    "SELECT 1 FROM positions WHERE pair_id = ? AND exit_ts IS NULL",
+                    (g["pair_id"],),
+                ).fetchone()
+                if exists:
+                    continue
+                legs = conn.execute(
+                    "SELECT ticker, side, qty, fill_price FROM orders "
+                    "WHERE pair_id = ? AND bar_ts = ? AND status = 'filled'",
+                    (g["pair_id"], g["bar_ts"]),
+                ).fetchall()
+                if len(legs) < 2:
+                    continue
+                # Identify ticker_a / ticker_b from pair_id
+                if "_" in g["pair_id"]:
+                    ta_name, tb_name = g["pair_id"].split("_", 1)
+                else:
+                    ta_name, tb_name = legs[0]["ticker"], legs[-1]["ticker"]
+                leg_a = next((l for l in legs if l["ticker"] == ta_name), legs[0])
+                leg_b = next((l for l in legs if l["ticker"] == tb_name), legs[-1])
+                direction = 1 if leg_a["side"] == "buy" else -1
+                notional_a = float(leg_a["qty"]) * float(leg_a["fill_price"] or 0)
+                notional_b = float(leg_b["qty"]) * float(leg_b["fill_price"] or 0)
+                beta = notional_b / notional_a if notional_a > 0 else 1.0
+                conn.execute(
+                    "INSERT OR IGNORE INTO positions "
+                    "(pair_id, side_a, side_b, beta, direction, notional_a, notional_b, "
+                    " entry_ts, entry_z) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (g["pair_id"], ta_name, tb_name, beta, direction,
+                     notional_a, notional_b,
+                     datetime.now(timezone.utc).isoformat(), 0.0),
+                )
+                summary["positions_inserted"] += 1
+                log_event(conn, "position_backfilled", "INFO",
+                          f"{g['pair_id']} direction={direction} "
+                          f"notional_a=${notional_a:.0f} notional_b=${notional_b:.0f}",
+                          {"beta_proxy": beta})
+
+            # 3. Clear halt
+            halt_row = conn.execute(
+                "SELECT halted, reason FROM kill_switch WHERE id = 1"
+            ).fetchone()
+            if halt_row and halt_row["halted"]:
+                clear_halt(conn)
+                log_event(conn, "halt_cleared", "WARN",
+                          "kill_switch halt cleared via admin endpoint after "
+                          f"status-normalization bug fix (was: {halt_row['reason']})")
+                summary["halt_cleared"] = True
+    except Exception as e:
+        logger.error(f"recover_after_status_bug: {type(e).__name__}: {e}")
+        return JSONResponse(
+            {"error": f"{type(e).__name__}: {e}", "summary": summary},
+            status_code=500,
+        )
+
+    return {"ok": True, "summary": summary}
+
+
 @app.get("/api/status")
 def status():
     """Connectivity strip: kill-switch state, last bar age, broker auth."""

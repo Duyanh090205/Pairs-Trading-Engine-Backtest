@@ -52,6 +52,33 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def normalize_status(s: str | None) -> str:
+    """Normalize broker status strings to schema-canonical lowercase values.
+
+    Alpaca returns 'OrderStatus.FILLED' / 'OrderStatus.ACCEPTED' / etc. Schema
+    expects 'filled' / 'submitted' / etc. All downstream comparisons depend on
+    this canonical form — normalize at every write site.
+    """
+    if not s:
+        return ""
+    low = s.lower()
+    if low.startswith("orderstatus."):
+        low = low[len("orderstatus."):]
+    # Map Alpaca-only vocabulary to schema vocabulary
+    if low == "partially_filled":
+        return "partial"
+    if low == "accepted":
+        return "submitted"
+    if low == "done_for_day":
+        return "expired"
+    if low in ("pending_new", "pending_replace", "replaced", "stopped",
+               "suspended", "calculated"):
+        return "submitted"
+    if low == "pending_cancel":
+        return "canceled"
+    return low
+
+
 # Statuses that mean a previous submission attempt is DEAD — safe to re-submit
 # under a new client_order_id. Anything not in this set is treated as still
 # alive (or successfully filled) and dedupe blocks re-submission.
@@ -158,7 +185,8 @@ def submit_order(trading_client, conn: sqlite3.Connection, req: OrderRequest,
                       {"client_order_id": coid})
             raw_resp = {"error": f"{type(e).__name__}: {e}"}
 
-    status = raw_resp.get("status", "submitted") if "error" not in raw_resp else "rejected"
+    raw_status = raw_resp.get("status", "submitted") if "error" not in raw_resp else "rejected"
+    status = normalize_status(raw_status)
     conn.execute(
         "INSERT INTO orders (client_order_id, broker_order_id, pair_id, bar_ts, ticker, "
         "side, qty, order_type, limit_price, status, submitted_ts, decision_price, raw_response) "

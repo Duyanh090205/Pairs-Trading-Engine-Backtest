@@ -33,9 +33,11 @@ def _expected_local_qty(conn: sqlite3.Connection, ticker: str) -> float:
     qty = 0.0
     for r in rows:
         # Determine shares filled for THIS ticker via orders.fill_qty (more precise than notional/price)
+        # Use LOWER + REPLACE for back-compat with rows written before normalize_status() was added.
         leg_qty_row = conn.execute(
             "SELECT SUM(fill_qty) AS q FROM orders "
-            "WHERE pair_id = ? AND ticker = ? AND status = 'filled'",
+            "WHERE pair_id = ? AND ticker = ? "
+            "AND LOWER(REPLACE(status, 'OrderStatus.', '')) = 'filled'",
             (r["pair_id"], ticker),
         ).fetchone()
         leg_qty = float(leg_qty_row["q"] or 0.0)
@@ -70,8 +72,11 @@ def reconcile(trading_client, conn: sqlite3.Connection,
         if abs(diff) > tolerance_shares:
             out.append(ReconcileMismatch(ticker, b_qty, local, diff))
     # Tickers we hold locally but not at broker
+    # Use LOWER + REPLACE for back-compat with rows pre-normalize_status().
     local_tickers = {r["ticker"] for r in conn.execute(
-        "SELECT DISTINCT ticker FROM orders WHERE status IN ('filled', 'partial')"
+        "SELECT DISTINCT ticker FROM orders "
+        "WHERE LOWER(REPLACE(status, 'OrderStatus.', '')) IN "
+        "('filled', 'partial', 'partially_filled')"
     )}
     for ticker in local_tickers - seen:
         local = _expected_local_qty(conn, ticker)
