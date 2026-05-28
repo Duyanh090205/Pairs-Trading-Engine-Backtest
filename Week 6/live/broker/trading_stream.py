@@ -163,7 +163,7 @@ class TradingStreamHandler:
         bar_ts = row["bar_ts"]
         # Look for both legs of this pair at THIS DECISION BAR (not insert-time)
         legs = conn.execute(
-            "SELECT pair_id, ticker, side, qty, fill_price, status, bar_ts "
+            "SELECT pair_id, ticker, side, qty, fill_price, status, bar_ts, entry_z "
             "FROM orders WHERE pair_id = ? AND bar_ts = ?",
             (pair_id, bar_ts),
         ).fetchall()
@@ -185,16 +185,19 @@ class TradingStreamHandler:
         direction = 1 if leg_a["side"] == "buy" else -1
         notional_a = float(leg_a["qty"]) * float(leg_a["fill_price"] or 0)
         notional_b = float(leg_b["qty"]) * float(leg_b["fill_price"] or 0)
-        # beta and entry_z aren't directly in orders — caller-side engine should
-        # have written them to a separate place. For now, store qty ratio.
+        # beta proxy from qty ratio (true beta lives in pair_contexts memory)
         beta = notional_b / notional_a if notional_a > 0 else 1.0
+        # entry_z written by submit_order from ctx.last_z. Fall back to 0 if a
+        # legacy row (pre-migration) lacks it.
+        entry_z_vals = [l["entry_z"] for l in legs if l["entry_z"] is not None]
+        entry_z = float(entry_z_vals[0]) if entry_z_vals else 0.0
         conn.execute(
             "INSERT OR IGNORE INTO positions "
             "(pair_id, side_a, side_b, beta, direction, notional_a, notional_b, "
             " entry_ts, entry_z) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (pair_id, side_a, side_b, beta, direction, notional_a, notional_b,
-             datetime.now(timezone.utc).isoformat(), 0.0),
+             datetime.now(timezone.utc).isoformat(), entry_z),
         )
         from live.state.persist import log_event
         log_event(conn, "position_opened", "INFO",

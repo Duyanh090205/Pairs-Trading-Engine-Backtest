@@ -347,8 +347,10 @@ class LiveEngine:
             ticker=ctx.ticker_b, side=side_b, qty=qty_b, order_type="market",
         )
         with connect(STATE_DB_PATH) as conn:
-            out_a = submit_order(trading_client, conn, req_a, decision_price=price_a)
-            out_b = submit_order(trading_client, conn, req_b, decision_price=price_b)
+            out_a = submit_order(trading_client, conn, req_a, decision_price=price_a,
+                                 entry_z=ctx.last_z)
+            out_b = submit_order(trading_client, conn, req_b, decision_price=price_b,
+                                 entry_z=ctx.last_z)
         logger.info(f"  -> orders: A={out_a.status}, B={out_b.status}")
         if out_a.refused_reason or out_b.refused_reason:
             alert(Severity.WARN,

@@ -95,7 +95,8 @@ def _is_dead_status(status: str | None) -> bool:
 
 
 def submit_order(trading_client, conn: sqlite3.Connection, req: OrderRequest,
-                 decision_price: float, dry_run: bool = False) -> OrderResult:
+                 decision_price: float, dry_run: bool = False,
+                 entry_z: float | None = None) -> OrderResult:
     """Submit `req` idempotently. Returns OrderResult.
 
     Safety gates (FIRST, before any broker call):
@@ -189,11 +190,12 @@ def submit_order(trading_client, conn: sqlite3.Connection, req: OrderRequest,
     status = normalize_status(raw_status)
     conn.execute(
         "INSERT INTO orders (client_order_id, broker_order_id, pair_id, bar_ts, ticker, "
-        "side, qty, order_type, limit_price, status, submitted_ts, decision_price, raw_response) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "side, qty, order_type, limit_price, status, submitted_ts, decision_price, "
+        "raw_response, entry_z) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (coid, broker_id, req.pair_id, req.bar_ts, req.ticker, req.side, req.qty,
          req.order_type, req.limit_price, status, _now(),
-         decision_price, json.dumps(raw_resp)),
+         decision_price, json.dumps(raw_resp), entry_z),
     )
     log_event(conn, "order_submit", "INFO",
               f"{req.ticker} {req.side} {req.qty} @{req.order_type} → {status}",

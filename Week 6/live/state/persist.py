@@ -56,6 +56,9 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
             ("decision_price",  "REAL"),
             ("filled_ts",       "TEXT"),
             ("raw_response",    "TEXT"),
+            # entry_z: the Z-score that triggered the decision. Persisted so
+            # _maybe_open_position can read it when inserting positions row.
+            ("entry_z",         "REAL"),
         ])
         # Indexes that depend on added columns must be created AFTER the ALTERs.
         conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_pair_bar ON orders(pair_id, bar_ts)")
