@@ -318,7 +318,7 @@ def positions():
 def orders(limit: int = 50):
     return {"rows": _safe_query(
         "SELECT client_order_id, pair_id, ticker, side, qty, order_type, status, "
-        "fill_qty, fill_price, decision_price, submitted_ts, filled_ts "
+        "fill_qty, fill_price, decision_price, entry_z, submitted_ts, filled_ts "
         "FROM orders ORDER BY submitted_ts DESC LIMIT ?",
         (limit,),
     )}
