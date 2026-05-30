@@ -283,6 +283,157 @@ async def recover_after_status_bug(request: Request):
     return {"ok": True, "summary": summary}
 
 
+@app.post("/api/admin/finalize_eom_positions")
+async def finalize_eom_positions(request: Request):
+    """One-shot recovery after Friday EOM flatten left positions table stale.
+
+    Bug discovered: eom_flatten.py submits close orders but no production
+    code path updates positions.exit_ts / realized_pnl when those close
+    orders fill (trade_journal.record_exit exists but is never called
+    from trade_update handler). Positions stay 'open' in DB -> reconcile
+    loop sees mismatch with broker (which is flat) -> kill_switch trips.
+
+    This endpoint:
+      1. For each open position, finds matching close orders (filled, after
+         entry_ts) and computes realized P&L from entry vs exit fills
+      2. Sets positions.exit_ts, exit_z=NULL, exit_reason='eom',
+         realized_pnl, plus realized_cost_bps computed from notional
+      3. Clears kill_switch halt
+    Idempotent — safe to retry.
+    """
+    from datetime import datetime, timezone
+
+    token_expected = os.environ.get("ADMIN_TOKEN")
+    if not token_expected:
+        return JSONResponse({"error": "ADMIN_TOKEN not configured"}, status_code=503)
+    if request.headers.get("X-Admin-Token", "") != token_expected:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+
+    try:
+        from live.state.persist import clear_halt, log_event
+    except Exception as e:
+        return JSONResponse({"error": f"import failed: {e}"}, status_code=500)
+
+    summary: dict = {"positions_finalized": 0, "halt_cleared": False, "details": []}
+    try:
+        with _conn() as conn:
+            open_pos = conn.execute(
+                "SELECT pair_id, side_a, side_b, direction, notional_a, notional_b, "
+                "entry_ts FROM positions WHERE exit_ts IS NULL"
+            ).fetchall()
+
+            for pos in open_pos:
+                pair_id = pos["pair_id"]
+                ta, tb = pos["side_a"], pos["side_b"]
+                direction = int(pos["direction"])
+                entry_ts = pos["entry_ts"]
+
+                # Entry leg sides per position direction
+                # direction=+1: long A (buy), short B (sell)
+                # direction=-1: short A (sell), long B (buy)
+                entry_side_a = "buy" if direction == 1 else "sell"
+                entry_side_b = "sell" if direction == 1 else "buy"
+                exit_side_a = "sell" if direction == 1 else "buy"
+                exit_side_b = "buy" if direction == 1 else "sell"
+
+                # Find entry + exit fills for each leg
+                def _find_fill(ticker, side, ts_op, ts_ref):
+                    row = conn.execute(
+                        f"SELECT SUM(fill_qty) AS qty, "
+                        f"SUM(fill_qty * fill_price) / NULLIF(SUM(fill_qty), 0) AS px "
+                        f"FROM orders WHERE pair_id = ? AND ticker = ? "
+                        f"AND side = ? AND status = 'filled' "
+                        f"AND filled_ts {ts_op} ?",
+                        (pair_id, ticker, side, ts_ref),
+                    ).fetchone()
+                    return (
+                        float(row["qty"]) if row and row["qty"] else 0.0,
+                        float(row["px"]) if row and row["px"] else 0.0,
+                    )
+
+                entry_a_qty, entry_a_px = _find_fill(ta, entry_side_a, "<=", entry_ts[:19] + "Z")
+                # fallback: any filled with that side, regardless of ts
+                if entry_a_qty == 0:
+                    entry_a_qty, entry_a_px = _find_fill(ta, entry_side_a, ">", "1900-01-01")
+                entry_b_qty, entry_b_px = _find_fill(tb, entry_side_b, ">", "1900-01-01")
+                exit_a_qty, exit_a_px = _find_fill(ta, exit_side_a, ">", entry_ts[:19] + "Z")
+                exit_b_qty, exit_b_px = _find_fill(tb, exit_side_b, ">", entry_ts[:19] + "Z")
+
+                if exit_a_qty == 0 or exit_b_qty == 0:
+                    summary["details"].append({
+                        "pair_id": pair_id, "skipped": "exit fills not found"
+                    })
+                    continue
+
+                # P&L per leg using min qty (handle partial mismatch)
+                qty_a = min(entry_a_qty, exit_a_qty)
+                qty_b = min(entry_b_qty, exit_b_qty)
+                if direction == 1:
+                    pnl_a = qty_a * (exit_a_px - entry_a_px)        # long A
+                    pnl_b = qty_b * (entry_b_px - exit_b_px)        # short B
+                else:
+                    pnl_a = qty_a * (entry_a_px - exit_a_px)        # short A
+                    pnl_b = qty_b * (exit_b_px - entry_b_px)        # long B
+                realized_pnl = pnl_a + pnl_b
+
+                # Use latest exit ts
+                exit_ts_row = conn.execute(
+                    "SELECT MAX(filled_ts) AS ts FROM orders "
+                    "WHERE pair_id = ? AND status = 'filled' AND filled_ts > ?",
+                    (pair_id, entry_ts[:19] + "Z"),
+                ).fetchone()
+                exit_ts = exit_ts_row["ts"] if exit_ts_row and exit_ts_row["ts"] \
+                    else datetime.now(timezone.utc).isoformat()
+
+                # realized cost bps proxy: total slippage / notional
+                gross_notional = (qty_a * entry_a_px + qty_b * entry_b_px)
+                cost_bps_proxy = 0.0
+
+                conn.execute(
+                    "UPDATE positions SET exit_ts = ?, exit_z = NULL, "
+                    "exit_reason = ?, realized_pnl = ?, realized_cost_bps = ? "
+                    "WHERE pair_id = ? AND entry_ts = ? AND exit_ts IS NULL",
+                    (exit_ts, "eom", realized_pnl, cost_bps_proxy, pair_id, entry_ts),
+                )
+                summary["positions_finalized"] += 1
+                summary["details"].append({
+                    "pair_id": pair_id,
+                    "direction": direction,
+                    "entry_a_px": round(entry_a_px, 4),
+                    "exit_a_px": round(exit_a_px, 4),
+                    "entry_b_px": round(entry_b_px, 4),
+                    "exit_b_px": round(exit_b_px, 4),
+                    "pnl_a": round(pnl_a, 2),
+                    "pnl_b": round(pnl_b, 2),
+                    "realized_pnl": round(realized_pnl, 2),
+                })
+                log_event(conn, "position_finalized", "INFO",
+                          f"{pair_id} eom realized_pnl=${realized_pnl:+.2f} "
+                          f"(A={pnl_a:+.2f}, B={pnl_b:+.2f})")
+
+            # Clear halt
+            halt_row = conn.execute(
+                "SELECT halted FROM kill_switch WHERE id = 1"
+            ).fetchone()
+            if halt_row and halt_row["halted"]:
+                clear_halt(conn)
+                log_event(conn, "halt_cleared", "WARN",
+                          "kill_switch halt cleared after EOM positions finalized")
+                summary["halt_cleared"] = True
+
+            total_pnl = sum(d.get("realized_pnl", 0) for d in summary["details"]
+                            if "realized_pnl" in d)
+            summary["total_realized_pnl"] = round(total_pnl, 2)
+    except Exception as e:
+        logger.error(f"finalize_eom_positions: {type(e).__name__}: {e}")
+        return JSONResponse(
+            {"error": f"{type(e).__name__}: {e}", "summary": summary},
+            status_code=500,
+        )
+
+    return {"ok": True, "summary": summary}
+
+
 @app.get("/api/status")
 def status():
     """Connectivity strip: kill-switch state, last bar age, broker auth."""
