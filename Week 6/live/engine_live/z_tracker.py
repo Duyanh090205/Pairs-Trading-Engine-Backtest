@@ -43,3 +43,14 @@ class ZTracker:
         mean = statistics.fmean(clean)
         std = max(statistics.stdev(clean), _STD_FLOOR)  # ddof=1; floor matches backtest
         return (spread - mean) / std
+
+    def to_list(self) -> list[float]:
+        """Snapshot current buffer as a list (for DB persistence)."""
+        return list(self.buf)
+
+    def restore_from(self, values: list[float]) -> None:
+        """Replace current buffer with `values` (truncated to window). Used to
+        restore state after a process restart so live Z trajectory does not
+        reset to formation seed on every engine reboot."""
+        self.buf.clear()
+        self.buf.extend(values[-self.window:])

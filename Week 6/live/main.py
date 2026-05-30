@@ -53,7 +53,7 @@ from live.monitor.kill_switch import KillSwitchThresholds, evaluate as evaluate_
 from live.safety import hardstop  # noqa: E402
 from live.state.persist import (  # noqa: E402
     connect, get_last_decision_date, get_or_set_session_equity,
-    init_db, log_event, set_last_decision_date,
+    init_db, load_z_buffer, log_event, save_z_buffer, set_last_decision_date,
 )
 
 ENTRY_Z = float(_os.environ.get("ENTRY_Z", "3.0"))
@@ -151,6 +151,17 @@ class LiveEngine:
             else:
                 logger.info(f"Session start equity: ${self._session_start_equity:.2f}")
 
+            # Restore persisted ZTracker buffers (so live Z trajectory does
+            # not reset to formation seed on every engine restart).
+            restored_z = 0
+            for pid, ctx in self.pair_contexts.items():
+                buf = load_z_buffer(conn, pid)
+                if buf:
+                    ctx.z_tracker.restore_from(buf)
+                    restored_z += 1
+            if restored_z:
+                logger.info(f"Restored ZTracker buf for {restored_z} pairs")
+
             # FIX BUG 2: restore pair states from open positions on restart
             self._restore_pair_states_from_db(conn)
             log_event(conn, "engine_init", "INFO",
@@ -243,6 +254,10 @@ class LiveEngine:
             rb_last = float(rb.dropna().iloc[-1])
             spread = ra_last - ctx.alpha - ctx.beta * rb_last
             z = ctx.z_tracker.push(spread)
+            # Persist updated ZTracker buf so the next restart restores it
+            # (avoids resetting live Z trajectory back to formation seed).
+            with connect(STATE_DB_PATH) as conn:
+                save_z_buffer(conn, ctx.pair_id, ctx.z_tracker.to_list())
             if z is None:
                 continue
             ctx.last_z = z

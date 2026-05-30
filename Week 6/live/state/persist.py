@@ -64,6 +64,43 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_pair_bar ON orders(pair_id, bar_ts)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_broker ON orders(broker_order_id)")
 
+    # pair_z_buffer: persisted rolling-Z deque per pair (so live Z does not
+    # reset to formation seed on every engine restart). Always exists after
+    # init; the same migration body handles fresh DBs (table just got CREATEd)
+    # and legacy DBs (table missing).
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS pair_z_buffer ("
+        "pair_id TEXT PRIMARY KEY, "
+        "buf_json TEXT NOT NULL, "
+        "updated_ts TEXT NOT NULL)"
+    )
+
+
+def save_z_buffer(conn: sqlite3.Connection, pair_id: str,
+                  values: list[float]) -> None:
+    """Persist the rolling-Z buffer for `pair_id` as JSON."""
+    from datetime import datetime, timezone
+    conn.execute(
+        "INSERT INTO pair_z_buffer (pair_id, buf_json, updated_ts) "
+        "VALUES (?, ?, ?) "
+        "ON CONFLICT(pair_id) DO UPDATE SET buf_json = excluded.buf_json, "
+        "updated_ts = excluded.updated_ts",
+        (pair_id, json.dumps(values), datetime.now(timezone.utc).isoformat()),
+    )
+
+
+def load_z_buffer(conn: sqlite3.Connection, pair_id: str) -> list[float] | None:
+    """Load persisted Z buffer for `pair_id`, or None if never saved."""
+    row = conn.execute(
+        "SELECT buf_json FROM pair_z_buffer WHERE pair_id = ?", (pair_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    try:
+        return list(json.loads(row["buf_json"]))
+    except Exception:
+        return None
+
 
 def _ensure_columns(conn: sqlite3.Connection, table: str,
                     columns: list[tuple[str, str]]) -> None:
