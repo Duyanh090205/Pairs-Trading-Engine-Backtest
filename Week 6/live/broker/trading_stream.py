@@ -85,6 +85,7 @@ class TradingStreamHandler:
             if ev_type in ("fill", "partial_fill"):
                 if filled_qty > 0 and self._is_final_fill(status):
                     self._maybe_open_position(conn, coid)
+                    self._maybe_close_position(conn, coid)
                 conn.commit()
                 return FillEvent(
                     client_order_id=coid, broker_order_id=broker_id,
@@ -204,3 +205,90 @@ class TradingStreamHandler:
                   f"{pair_id} direction={direction} notional_a=${notional_a:.0f} "
                   f"notional_b=${notional_b:.0f}",
                   {"beta_proxy": beta})
+
+    def _maybe_close_position(self, conn, coid: str) -> None:
+        """When both EXIT legs of a pair fill, UPDATE positions to set
+        exit_ts + realized_pnl. Mirrors _maybe_open_position for the exit side.
+
+        Identifies the open position for this pair. An exit leg's side is the
+        REVERSE of the entry leg's side. Walk all filled orders for this pair,
+        find the entry pair (earliest 2 fills, opposite sides) and exit pair
+        (later 2 fills, opposite sides), compute P&L per leg using direction.
+        """
+        from live.execution.order_manager import normalize_status
+        row = conn.execute(
+            "SELECT pair_id FROM orders WHERE client_order_id = ?", (coid,),
+        ).fetchone()
+        if row is None:
+            return
+        pair_id = row["pair_id"]
+
+        # Must have an open position to close
+        pos = conn.execute(
+            "SELECT side_a, side_b, direction, entry_ts, notional_a, notional_b "
+            "FROM positions WHERE pair_id = ? AND exit_ts IS NULL",
+            (pair_id,),
+        ).fetchone()
+        if pos is None:
+            return
+
+        ta, tb = pos["side_a"], pos["side_b"]
+        direction = int(pos["direction"])
+        entry_side_a = "buy" if direction == 1 else "sell"
+        entry_side_b = "sell" if direction == 1 else "buy"
+        exit_side_a = "sell" if direction == 1 else "buy"
+        exit_side_b = "buy" if direction == 1 else "sell"
+
+        def _sum_filled(ticker: str, side: str):
+            row = conn.execute(
+                "SELECT SUM(fill_qty) AS q, "
+                "SUM(fill_qty * fill_price) / NULLIF(SUM(fill_qty), 0) AS px, "
+                "MAX(filled_ts) AS ts "
+                "FROM orders WHERE pair_id = ? AND ticker = ? "
+                "AND side = ? AND status = 'filled'",
+                (pair_id, ticker, side),
+            ).fetchone()
+            return (
+                float(row["q"]) if row and row["q"] else 0.0,
+                float(row["px"]) if row and row["px"] else 0.0,
+                row["ts"] if row else None,
+            )
+
+        eqa, epa, _ = _sum_filled(ta, entry_side_a)
+        eqb, epb, _ = _sum_filled(tb, entry_side_b)
+        xqa, xpa, xtsa = _sum_filled(ta, exit_side_a)
+        xqb, xpb, xtsb = _sum_filled(tb, exit_side_b)
+
+        # Both exit legs must be filled
+        if xqa <= 0 or xqb <= 0:
+            return
+        # Entry side must also be there (sanity)
+        if eqa <= 0 or eqb <= 0:
+            return
+
+        qty_a = min(eqa, xqa)
+        qty_b = min(eqb, xqb)
+        if direction == 1:
+            pnl_a = qty_a * (xpa - epa)         # long A
+            pnl_b = qty_b * (epb - xpb)         # short B
+        else:
+            pnl_a = qty_a * (epa - xpa)         # short A
+            pnl_b = qty_b * (xpb - epb)         # long B
+        realized_pnl = pnl_a + pnl_b
+
+        # exit_ts = latest of the two exit fills
+        exit_ts = max([t for t in (xtsa, xtsb) if t],
+                      default=datetime.now(timezone.utc).isoformat())
+
+        # exit_z and exit_reason: trade_update has no Z context, so write
+        # NULL exit_z and exit_reason='zero_cross' (the normal exit path).
+        # EOM-driven exits get reason='eom' via the admin endpoint.
+        from live.monitor.trade_journal import record_exit
+        record_exit(conn, pair_id, exit_ts=exit_ts, exit_z=0.0,
+                    exit_reason="zero_cross", realized_pnl=realized_pnl,
+                    realized_cost_bps=0.0)
+        from live.state.persist import log_event
+        log_event(conn, "position_closed", "INFO",
+                  f"{pair_id} realized_pnl=${realized_pnl:+.2f} "
+                  f"(A={pnl_a:+.2f}, B={pnl_b:+.2f})",
+                  {"qty_a": qty_a, "qty_b": qty_b})
