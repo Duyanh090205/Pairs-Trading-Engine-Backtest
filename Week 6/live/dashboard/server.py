@@ -314,9 +314,24 @@ async def finalize_eom_positions(request: Request):
     except Exception as e:
         return JSONResponse({"error": f"import failed: {e}"}, status_code=500)
 
-    summary: dict = {"positions_finalized": 0, "halt_cleared": False, "details": []}
+    summary: dict = {"positions_finalized": 0, "halt_cleared": False,
+                     "positions_reopened_for_rerun": 0, "details": []}
     try:
         with _conn() as conn:
+            # Reset positions previously finalized with $0 P&L via 'eom' — those
+            # came from the buggy first-run of this endpoint (timestamp filter
+            # excluded legacy NULL filled_ts). Re-process them with the fixed
+            # query. Don't touch positions where realized_pnl is meaningfully
+            # nonzero — those finalized correctly.
+            reset = conn.execute(
+                "UPDATE positions "
+                "SET exit_ts = NULL, exit_reason = NULL, "
+                "    realized_pnl = NULL, realized_cost_bps = NULL, exit_z = NULL "
+                "WHERE exit_reason = 'eom' "
+                "AND (realized_pnl IS NULL OR ABS(realized_pnl) < 0.01)"
+            )
+            summary["positions_reopened_for_rerun"] = reset.rowcount
+
             open_pos = conn.execute(
                 "SELECT pair_id, side_a, side_b, direction, notional_a, notional_b, "
                 "entry_ts FROM positions WHERE exit_ts IS NULL"
@@ -336,28 +351,28 @@ async def finalize_eom_positions(request: Request):
                 exit_side_a = "sell" if direction == 1 else "buy"
                 exit_side_b = "buy" if direction == 1 else "sell"
 
-                # Find entry + exit fills for each leg
-                def _find_fill(ticker, side, ts_op, ts_ref):
+                # Find entry + exit fills for each leg.
+                # Use side filter only — legacy fills from before status
+                # normalization fix have filled_ts=NULL so any timestamp
+                # filter would exclude them. Per-pair lifecycle: same side
+                # appears at most once (entry OR exit) so side is enough.
+                def _find_fill(ticker, side):
                     row = conn.execute(
-                        f"SELECT SUM(fill_qty) AS qty, "
-                        f"SUM(fill_qty * fill_price) / NULLIF(SUM(fill_qty), 0) AS px "
-                        f"FROM orders WHERE pair_id = ? AND ticker = ? "
-                        f"AND side = ? AND status = 'filled' "
-                        f"AND filled_ts {ts_op} ?",
-                        (pair_id, ticker, side, ts_ref),
+                        "SELECT SUM(fill_qty) AS qty, "
+                        "SUM(fill_qty * fill_price) / NULLIF(SUM(fill_qty), 0) AS px "
+                        "FROM orders WHERE pair_id = ? AND ticker = ? "
+                        "AND side = ? AND status = 'filled'",
+                        (pair_id, ticker, side),
                     ).fetchone()
                     return (
                         float(row["qty"]) if row and row["qty"] else 0.0,
                         float(row["px"]) if row and row["px"] else 0.0,
                     )
 
-                entry_a_qty, entry_a_px = _find_fill(ta, entry_side_a, "<=", entry_ts[:19] + "Z")
-                # fallback: any filled with that side, regardless of ts
-                if entry_a_qty == 0:
-                    entry_a_qty, entry_a_px = _find_fill(ta, entry_side_a, ">", "1900-01-01")
-                entry_b_qty, entry_b_px = _find_fill(tb, entry_side_b, ">", "1900-01-01")
-                exit_a_qty, exit_a_px = _find_fill(ta, exit_side_a, ">", entry_ts[:19] + "Z")
-                exit_b_qty, exit_b_px = _find_fill(tb, exit_side_b, ">", entry_ts[:19] + "Z")
+                entry_a_qty, entry_a_px = _find_fill(ta, entry_side_a)
+                entry_b_qty, entry_b_px = _find_fill(tb, entry_side_b)
+                exit_a_qty, exit_a_px = _find_fill(ta, exit_side_a)
+                exit_b_qty, exit_b_px = _find_fill(tb, exit_side_b)
 
                 if exit_a_qty == 0 or exit_b_qty == 0:
                     summary["details"].append({
