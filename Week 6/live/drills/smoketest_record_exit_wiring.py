@@ -251,6 +251,85 @@ def t_partial_exit_does_not_close():
           pos["exit_ts"] is None, f"got exit_ts={pos['exit_ts']}")
 
 
+def t_prior_lifecycle_does_not_phantom_close():
+    """Real bug Mon 2026-06-01: pair had a prior lifecycle (entry+exit) last
+    week. Today re-enters same pair. _maybe_close_position was matching all
+    historical fills regardless of timestamp -> treated last week's EOM exits
+    as today's exit fills -> immediately phantom-closed the new position.
+
+    Fix: filter exit fills by filled_ts > position.entry_ts."""
+    td = tempfile.mkdtemp(prefix="rec_prior_")
+    db = Path(td) / "x.db"
+    init_db(db)
+    client = _mock_broker()
+
+    # PRIOR lifecycle: enter, fill, EOM-exit, fill - all done last week
+    req_a = OrderRequest(pair_id="N_P", bar_ts="2026-05-28T20:00:00Z",
+                         leg="A", ticker="N", side="buy", qty=15.0,
+                         order_type="market")
+    req_b = OrderRequest(pair_id="N_P", bar_ts="2026-05-28T20:00:00Z",
+                         leg="B", ticker="P", side="sell", qty=28.0,
+                         order_type="market")
+    with connect(db) as conn:
+        r_a = submit_order(client, conn, req_a, decision_price=86.5, entry_z=-5.0)
+        r_b = submit_order(client, conn, req_b, decision_price=26.0, entry_z=-5.0)
+    h = _make_handler(db)
+    # Prior entry fills (long N, short P)
+    h.apply_event(_event(r_a.client_order_id, "N", "buy", 15.0, 86.5))
+    h.apply_event(_event(r_b.client_order_id, "P", "sell", 28.0, 26.0))
+
+    # Prior EOM exit
+    req_a_x = OrderRequest(pair_id="N_P", bar_ts="2026-05-29T19:59:23Z",
+                           leg="A_close", ticker="N", side="sell", qty=15.0,
+                           order_type="market")
+    req_b_x = OrderRequest(pair_id="N_P", bar_ts="2026-05-29T19:59:23Z",
+                           leg="B_close", ticker="P", side="buy", qty=28.0,
+                           order_type="market")
+    with connect(db) as conn:
+        x_a = submit_order(client, conn, req_a_x, decision_price=87.0)
+        x_b = submit_order(client, conn, req_b_x, decision_price=26.2)
+    h.apply_event(_event(x_a.client_order_id, "N", "sell", 15.0, 87.0))
+    h.apply_event(_event(x_b.client_order_id, "P", "buy", 28.0, 26.2))
+
+    # Verify prior cycle closed
+    with connect(db) as conn:
+        prior = conn.execute(
+            "SELECT exit_ts, realized_pnl FROM positions WHERE pair_id = 'N_P'"
+        ).fetchone()
+    check("prior cycle closed cleanly", prior["exit_ts"] is not None)
+
+    # NOW: today's NEW entry on same pair (same direction)
+    req_a2 = OrderRequest(pair_id="N_P", bar_ts="2026-06-01T20:00:00Z",
+                          leg="A", ticker="N", side="buy", qty=15.0,
+                          order_type="market")
+    req_b2 = OrderRequest(pair_id="N_P", bar_ts="2026-06-01T20:00:00Z",
+                          leg="B", ticker="P", side="sell", qty=28.0,
+                          order_type="market")
+    with connect(db) as conn:
+        r_a2 = submit_order(client, conn, req_a2, decision_price=85.5, entry_z=-5.05)
+        r_b2 = submit_order(client, conn, req_b2, decision_price=25.9, entry_z=-5.05)
+    # Today's entry fills
+    h.apply_event(_event(r_a2.client_order_id, "N", "buy", 15.0, 85.5))
+    h.apply_event(_event(r_b2.client_order_id, "P", "sell", 28.0, 25.9))
+
+    # ASSERT: a NEW open position exists AND it is NOT phantom-closed by
+    # mixing today's entries with last week's exits.
+    with connect(db) as conn:
+        positions = conn.execute(
+            "SELECT entry_ts, exit_ts, realized_pnl FROM positions "
+            "WHERE pair_id = 'N_P' ORDER BY entry_ts"
+        ).fetchall()
+    check("two position rows exist (prior closed + new open)",
+          len(positions) == 2, f"got {len(positions)}")
+    if len(positions) == 2:
+        check("first (prior) position still closed",
+              positions[0]["exit_ts"] is not None)
+        check("second (today's) position is OPEN — no phantom close",
+              positions[1]["exit_ts"] is None and positions[1]["realized_pnl"] is None,
+              f"got exit_ts={positions[1]['exit_ts']}, "
+              f"realized_pnl={positions[1]['realized_pnl']}")
+
+
 def main() -> int:
     print("== Smoketest: trade_update handler closes positions ==\n")
     print("--- 1. Long lifecycle: long A short B ---")
@@ -261,6 +340,8 @@ def main() -> int:
     t_entry_fill_does_not_close_position()
     print("\n--- 4. Partial exit (1 of 2 legs): position stays open ---")
     t_partial_exit_does_not_close()
+    print("\n--- 5. Prior lifecycle does NOT phantom-close new entry ---")
+    t_prior_lifecycle_does_not_phantom_close()
     print()
     if errors:
         print(f"{RED}FAIL: {len(errors)} - {errors}{RESET}")

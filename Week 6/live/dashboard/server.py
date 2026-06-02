@@ -449,6 +449,108 @@ async def finalize_eom_positions(request: Request):
     return {"ok": True, "summary": summary}
 
 
+@app.post("/api/admin/revert_phantom_close")
+async def revert_phantom_close(request: Request):
+    """One-shot recovery after _maybe_close_position's prior-lifecycle bug.
+
+    Bug Mon 2026-06-01: trade_update fired on entry fills for NEE_PFE,
+    _maybe_close_position read ALL filled orders without time filter,
+    treated last week's EOM exits as "today's exit fills", marked the
+    position closed with a phantom +$6.80 P&L. Broker actually has the
+    entry positions open -> reconcile mismatch -> kill_switch trip.
+
+    Recovery (idempotent):
+      1. Find positions where realized_pnl != 0 was assigned but the exit
+         orders' filled_ts is BEFORE the position's own entry_ts (impossible
+         in a clean lifecycle — flags the phantom close)
+      2. Revert those: clear exit_ts, exit_z, exit_reason, realized_pnl,
+         realized_cost_bps
+      3. Clear kill_switch halt
+    """
+    token_expected = os.environ.get("ADMIN_TOKEN")
+    if not token_expected:
+        return JSONResponse({"error": "ADMIN_TOKEN not configured"}, status_code=503)
+    if request.headers.get("X-Admin-Token", "") != token_expected:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+
+    try:
+        from live.state.persist import clear_halt, log_event
+    except Exception as e:
+        return JSONResponse({"error": f"import failed: {e}"}, status_code=500)
+
+    summary: dict = {"reverted": 0, "halt_cleared": False, "details": []}
+    try:
+        with _conn() as conn:
+            # Find positions where exit_ts is set but exit_reason='zero_cross'
+            # was the source (eom-closed positions used reason='eom'). For
+            # phantom closes, the exit fills used by computation are from a
+            # PRIOR cycle so MAX(exit-side filled_ts) < entry_ts. That's the
+            # signature.
+            closed = conn.execute(
+                "SELECT pair_id, side_a, side_b, direction, entry_ts, "
+                "exit_ts, realized_pnl FROM positions "
+                "WHERE exit_ts IS NOT NULL AND exit_reason = 'zero_cross'"
+            ).fetchall()
+            for p in closed:
+                pair_id = p["pair_id"]
+                ta, tb = p["side_a"], p["side_b"]
+                direction = int(p["direction"])
+                entry_ts = p["entry_ts"]
+                exit_side_a = "sell" if direction == 1 else "buy"
+                exit_side_b = "buy" if direction == 1 else "sell"
+
+                # Check whether ANY exit fill actually happened after entry_ts.
+                # If both exit-side legs have their latest filled_ts BEFORE
+                # entry_ts, this is a phantom close.
+                def _latest_exit_ts(ticker, side):
+                    row = conn.execute(
+                        "SELECT MAX(filled_ts) AS ts FROM orders "
+                        "WHERE pair_id = ? AND ticker = ? AND side = ? "
+                        "AND status = 'filled' AND filled_ts > ?",
+                        (pair_id, ticker, side, entry_ts),
+                    ).fetchone()
+                    return row["ts"] if row else None
+
+                exit_a_real = _latest_exit_ts(ta, exit_side_a)
+                exit_b_real = _latest_exit_ts(tb, exit_side_b)
+                if exit_a_real is None or exit_b_real is None:
+                    # No real exit happened after entry_ts -> phantom close
+                    conn.execute(
+                        "UPDATE positions SET exit_ts = NULL, exit_z = NULL, "
+                        "exit_reason = NULL, realized_pnl = NULL, "
+                        "realized_cost_bps = NULL "
+                        "WHERE pair_id = ? AND entry_ts = ?",
+                        (pair_id, entry_ts),
+                    )
+                    summary["reverted"] += 1
+                    summary["details"].append({
+                        "pair_id": pair_id,
+                        "entry_ts": entry_ts,
+                        "phantom_pnl_cleared": p["realized_pnl"],
+                    })
+                    log_event(conn, "phantom_close_reverted", "WARN",
+                              f"{pair_id} phantom close reverted "
+                              f"(phantom pnl was ${p['realized_pnl']:+.2f})")
+
+            # Clear halt if positions now match broker
+            halt_row = conn.execute(
+                "SELECT halted FROM kill_switch WHERE id = 1"
+            ).fetchone()
+            if halt_row and halt_row["halted"]:
+                clear_halt(conn)
+                log_event(conn, "halt_cleared", "WARN",
+                          "kill_switch halt cleared after phantom close revert")
+                summary["halt_cleared"] = True
+    except Exception as e:
+        logger.error(f"revert_phantom_close: {type(e).__name__}: {e}")
+        return JSONResponse(
+            {"error": f"{type(e).__name__}: {e}", "summary": summary},
+            status_code=500,
+        )
+
+    return {"ok": True, "summary": summary}
+
+
 @app.get("/api/status")
 def status():
     """Connectivity strip: kill-switch state, last bar age, broker auth."""

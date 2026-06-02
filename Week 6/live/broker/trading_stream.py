@@ -234,19 +234,26 @@ class TradingStreamHandler:
 
         ta, tb = pos["side_a"], pos["side_b"]
         direction = int(pos["direction"])
+        entry_ts = pos["entry_ts"]
         entry_side_a = "buy" if direction == 1 else "sell"
         entry_side_b = "sell" if direction == 1 else "buy"
         exit_side_a = "sell" if direction == 1 else "buy"
         exit_side_b = "buy" if direction == 1 else "sell"
 
-        def _sum_filled(ticker: str, side: str):
+        def _sum_filled(ticker: str, side: str, ts_op: str, ts_ref: str):
+            """Sum fills for this leg, filtering by filled_ts relative to
+            position.entry_ts. ts_op is '<=' (for entry side, count fills at
+            or before entry_ts) or '>' (for exit side, count fills strictly
+            after entry_ts so prior lifecycle's exits don't contaminate
+            today's just-opened position)."""
             row = conn.execute(
-                "SELECT SUM(fill_qty) AS q, "
-                "SUM(fill_qty * fill_price) / NULLIF(SUM(fill_qty), 0) AS px, "
-                "MAX(filled_ts) AS ts "
-                "FROM orders WHERE pair_id = ? AND ticker = ? "
-                "AND side = ? AND status = 'filled'",
-                (pair_id, ticker, side),
+                f"SELECT SUM(fill_qty) AS q, "
+                f"SUM(fill_qty * fill_price) / NULLIF(SUM(fill_qty), 0) AS px, "
+                f"MAX(filled_ts) AS ts "
+                f"FROM orders WHERE pair_id = ? AND ticker = ? "
+                f"AND side = ? AND status = 'filled' "
+                f"AND filled_ts {ts_op} ?",
+                (pair_id, ticker, side, ts_ref),
             ).fetchone()
             return (
                 float(row["q"]) if row and row["q"] else 0.0,
@@ -254,10 +261,14 @@ class TradingStreamHandler:
                 row["ts"] if row else None,
             )
 
-        eqa, epa, _ = _sum_filled(ta, entry_side_a)
-        eqb, epb, _ = _sum_filled(tb, entry_side_b)
-        xqa, xpa, xtsa = _sum_filled(ta, exit_side_a)
-        xqb, xpb, xtsb = _sum_filled(tb, exit_side_b)
+        # Entry fills: at or before entry_ts (the position's entry timestamp).
+        # Exit fills: STRICTLY after entry_ts — this prevents the bug where a
+        # prior lifecycle's EOM exits get mixed with today's new entry and
+        # falsely close the position immediately.
+        eqa, epa, _ = _sum_filled(ta, entry_side_a, "<=", entry_ts)
+        eqb, epb, _ = _sum_filled(tb, entry_side_b, "<=", entry_ts)
+        xqa, xpa, xtsa = _sum_filled(ta, exit_side_a, ">", entry_ts)
+        xqb, xpb, xtsb = _sum_filled(tb, exit_side_b, ">", entry_ts)
 
         # Both exit legs must be filled
         if xqa <= 0 or xqb <= 0:
