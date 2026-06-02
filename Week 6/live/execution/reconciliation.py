@@ -32,21 +32,28 @@ def _expected_local_qty(conn: sqlite3.Connection, ticker: str) -> float:
         return 0.0
     qty = 0.0
     for r in rows:
-        # Determine shares filled for THIS ticker via orders.fill_qty (more precise than notional/price)
-        # Use LOWER + REPLACE for back-compat with rows written before normalize_status() was added.
+        # Net signed qty across all filled orders for this pair+ticker —
+        # buys contribute positively, sells negatively. Prior lifecycles
+        # cancel out (entry buy + exit sell = 0). Current open cycle gives
+        # the unmatched residual (matches broker).
+        # Use LOWER + REPLACE for back-compat with rows written before
+        # normalize_status() was added.
         leg_qty_row = conn.execute(
-            "SELECT SUM(fill_qty) AS q FROM orders "
-            "WHERE pair_id = ? AND ticker = ? "
+            "SELECT SUM(CASE WHEN side = 'buy' THEN fill_qty "
+            "             WHEN side = 'sell' THEN -fill_qty ELSE 0 END) AS q "
+            "FROM orders WHERE pair_id = ? AND ticker = ? "
             "AND LOWER(REPLACE(status, 'OrderStatus.', '')) = 'filled'",
             (r["pair_id"], ticker),
         ).fetchone()
-        leg_qty = float(leg_qty_row["q"] or 0.0)
-        # Sign by which leg this ticker is + the pair direction
-        if ticker == r["side_a"]:
-            sign = 1 if r["direction"] == 1 else -1
-        else:  # side_b
-            sign = -1 if r["direction"] == 1 else 1
-        qty += sign * leg_qty
+        net_leg_qty = float(leg_qty_row["q"] or 0.0)
+        # Sign convention from position.direction. For NEE_PFE dir=+1:
+        #   side_a NEE is LONG  -> +net_leg_qty (already correct: buy=+, sell=-)
+        #   side_b PFE is SHORT -> the entry was a SELL, so net_leg_qty is
+        #                          already negative; sign multiplier keeps it
+        #                          aligned with broker's negative qty for shorts.
+        # Therefore: just use net_leg_qty directly — the buy/sell signing
+        # already encodes the long/short convention.
+        qty += net_leg_qty
     return qty
 
 

@@ -21,9 +21,10 @@
       <div hx-get="/api/pnl" hx-trigger="load, every 10s" hx-swap="innerHTML">Loading…</div>
     </div>
 
-    <div class="card">
+    <div class="card wide">
       <h2>Open Positions</h2>
-      <div hx-get="/api/positions" hx-trigger="load, every 10s" hx-swap="innerHTML">Loading…</div>
+      <div hx-get="/api/positions" hx-trigger="load, every 10s" hx-swap="innerHTML"
+           style="overflow-x:auto">Loading…</div>
     </div>
 
     <div class="card">
