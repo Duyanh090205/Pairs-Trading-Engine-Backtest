@@ -551,6 +551,120 @@ async def revert_phantom_close(request: Request):
     return {"ok": True, "summary": summary}
 
 
+@app.post("/api/admin/flatten_orphans")
+async def flatten_orphans(request: Request, dry_run: bool = True):
+    """Close open positions whose pair_id is no longer in the live pair set.
+
+    Discovery re-runs on every deploy; if the rebuilt pair list drops a pair
+    that has an open position, the engine holds it at the broker but can no
+    longer compute Z or exit it (orphaned — logged as 'no pair_context ...
+    manual intervention needed'). This submits MARKET close orders for each
+    orphan leg through the normal submit_order path, so fills flow through
+    trade_update -> _maybe_close_position and the positions/orders tables stay
+    consistent (reconcile stays clean).
+
+    Safe by construction:
+      - only touches positions whose pair_id is NOT in live pair_contexts
+      - dry_run=True (DEFAULT) just previews the plan; pass ?dry_run=false to
+        actually submit
+      - deterministic bar_ts per day -> re-calls dedupe (no double submit)
+    Auth: X-Admin-Token header == ADMIN_TOKEN.
+    """
+    from datetime import datetime, timezone
+
+    token_expected = os.environ.get("ADMIN_TOKEN")
+    if not token_expected:
+        return JSONResponse({"error": "ADMIN_TOKEN not configured"}, status_code=503)
+    if request.headers.get("X-Admin-Token", "") != token_expected:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+
+    try:
+        from live.main import get_engine
+        from live.broker.alpaca_client import AlpacaConfig, build_trading_client
+        from live.execution.order_manager import OrderRequest, submit_order
+        from live.state.persist import connect, log_event
+    except Exception as e:
+        return JSONResponse({"error": f"import failed: {e}"}, status_code=500)
+
+    engine = get_engine()
+    if engine is None:
+        return JSONResponse({"error": "engine not running"}, status_code=503)
+
+    loaded = set(engine.pair_contexts.keys())
+    summary: dict = {"dry_run": dry_run, "plan": [], "skipped": []}
+    try:
+        trading_client = build_trading_client(AlpacaConfig.from_env())
+        broker = {str(p.symbol): p for p in trading_client.get_all_positions()}
+
+        with connect(_DB) as conn:
+            open_pos = conn.execute(
+                "SELECT pair_id, side_a, side_b, direction, entry_z "
+                "FROM positions WHERE exit_ts IS NULL"
+            ).fetchall()
+
+            for pos in open_pos:
+                pair_id = pos["pair_id"]
+                if pair_id in loaded:
+                    summary["skipped"].append(
+                        {"pair_id": pair_id, "reason": "still in live pair set"})
+                    continue
+
+                ta, tb = pos["side_a"], pos["side_b"]
+                direction = int(pos["direction"])
+                # Exit side = reverse of entry side (same convention as _execute_action)
+                close_a = "sell" if direction == 1 else "buy"
+                close_b = "buy" if direction == 1 else "sell"
+
+                pa, pb = broker.get(ta), broker.get(tb)
+                if pa is None or pb is None:
+                    summary["skipped"].append(
+                        {"pair_id": pair_id, "reason": "leg(s) not held at broker"})
+                    continue
+                qty_a = int(abs(float(pa.qty)))
+                qty_b = int(abs(float(pb.qty)))
+                if qty_a < 1 or qty_b < 1:
+                    summary["skipped"].append(
+                        {"pair_id": pair_id, "reason": "zero qty at broker"})
+                    continue
+                price_a = abs(float(pa.market_value)) / qty_a
+                price_b = abs(float(pb.market_value)) / qty_b
+
+                item: dict = {
+                    "pair_id": pair_id,
+                    "leg_a": f"{close_a} {qty_a} {ta} @~{price_a:.2f}",
+                    "leg_b": f"{close_b} {qty_b} {tb} @~{price_b:.2f}",
+                }
+                if not dry_run:
+                    bar_ts = "flatten:" + datetime.now(timezone.utc).date().isoformat()
+                    req_a = OrderRequest(pair_id=pair_id, bar_ts=bar_ts, leg="A",
+                                         ticker=ta, side=close_a, qty=qty_a,
+                                         order_type="market")
+                    req_b = OrderRequest(pair_id=pair_id, bar_ts=bar_ts, leg="B",
+                                         ticker=tb, side=close_b, qty=qty_b,
+                                         order_type="market")
+                    out_a = submit_order(trading_client, conn, req_a,
+                                         decision_price=price_a, entry_z=pos["entry_z"])
+                    out_b = submit_order(trading_client, conn, req_b,
+                                         decision_price=price_b, entry_z=pos["entry_z"])
+                    item["result_a"] = out_a.status + (
+                        f" ({out_a.refused_reason})" if out_a.refused_reason else "")
+                    item["result_b"] = out_b.status + (
+                        f" ({out_b.refused_reason})" if out_b.refused_reason else "")
+                    log_event(conn, "orphan_flatten", "WARN",
+                              f"{pair_id} flattened (not in pair set): "
+                              f"{close_a} {qty_a} {ta}, {close_b} {qty_b} {tb}")
+                summary["plan"].append(item)
+    except Exception as e:
+        logger.error(f"flatten_orphans: {type(e).__name__}: {e}")
+        return JSONResponse({"error": f"{type(e).__name__}: {e}", "summary": summary},
+                            status_code=500)
+
+    return {"ok": True, "summary": summary,
+            "note": ("DRY RUN — pass ?dry_run=false to submit." if dry_run else
+                     "Close fills update positions via trade_update; verify with "
+                     "/api/positions, /api/trades, /api/pnl.")}
+
+
 @app.get("/api/status")
 def status():
     """Connectivity strip: kill-switch state, last bar age, broker auth."""
