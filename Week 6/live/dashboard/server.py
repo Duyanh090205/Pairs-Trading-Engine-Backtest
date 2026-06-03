@@ -103,9 +103,9 @@ def engine_info():
             info["engine_running"] = True
             info["pairs_loaded"] = len(engine.pair_contexts)
             info["universe_size"] = len(engine.universe_tickers)
-            if engine.latest_bar_ts:
+            if engine._latest_ws_bar_ts:
                 # Most recent bar timestamp across all tickers
-                info["last_bar_ts"] = max(engine.latest_bar_ts.values())
+                info["last_bar_ts"] = max(engine._latest_ws_bar_ts.values())
             if engine._session_start_equity is not None:
                 info["session_start_equity"] = engine._session_start_equity
     except Exception:
@@ -556,6 +556,7 @@ def status():
     """Connectivity strip: kill-switch state, last bar age, broker auth."""
     halted = False
     halt_reason = None
+    last_decision = None
     if _DB.exists():
         with _conn() as conn:
             row = conn.execute(
@@ -564,12 +565,24 @@ def status():
             if row is not None:
                 halted = bool(row["halted"])
                 halt_reason = row["reason"]
+            # last_decision_date: lets the strip show whether the daily decision
+            # loop actually ran (the loop is otherwise silent in the DB when it
+            # places no orders).
+            try:
+                drow = conn.execute(
+                    "SELECT last_decision_date FROM engine_session WHERE id = 1"
+                ).fetchone()
+                if drow is not None:
+                    last_decision = drow["last_decision_date"]
+            except Exception:
+                pass
     from live.safety.hardstop import is_tripped
     return {
         "kill_switch_halted": halted,
         "kill_switch_reason": halt_reason,
         "hardstop_tripped": is_tripped(),
         "db_exists": _DB.exists(),
+        "last_decision_date": last_decision,
     }
 
 
@@ -583,11 +596,14 @@ def positions():
 
 
 @app.get("/api/orders")
-def orders(limit: int = 50):
+def orders(limit: int = 50, include_canceled: bool = False):
+    # Default: hide canceled orders (e.g. wash-trade-blocked legs from setup)
+    # so the table shows actual fills. Pass include_canceled=true to see all.
+    where = "" if include_canceled else "WHERE status != 'canceled' "
     return {"rows": _safe_query(
         "SELECT client_order_id, pair_id, ticker, side, qty, order_type, status, "
         "fill_qty, fill_price, decision_price, entry_z, submitted_ts, filled_ts "
-        "FROM orders ORDER BY submitted_ts DESC LIMIT ?",
+        f"FROM orders {where}ORDER BY submitted_ts DESC LIMIT ?",
         (limit,),
     )}
 
@@ -622,6 +638,39 @@ def pnl():
         "backtest_predicted_annual_usd": 700.0,    # ~0.7% on $100k (honest expectation)
         "backtest_sharpe": 1.28,
     }
+
+
+@app.get("/api/broker")
+def broker():
+    """Live broker snapshot: account equity + unrealized P&L on open positions.
+
+    Calls Alpaca read-only. Fully guarded — any failure (no creds locally,
+    network) returns {"ok": false} so the P&L card degrades to '—' instead of
+    erroring. Mark-to-market unrealized P&L is the key 'are we up right now?'
+    number the DB-only /api/pnl (realized only) can't provide.
+    """
+    info: dict = {"ok": False, "equity": None, "unrealized_pnl_usd": None,
+                  "positions": []}
+    try:
+        from live.broker.alpaca_client import AlpacaConfig, build_trading_client
+        client = build_trading_client(AlpacaConfig.from_env())
+        acct = client.get_account()
+        info["equity"] = float(acct.equity)
+        total_upl = 0.0
+        for p in client.get_all_positions():
+            upl = float(getattr(p, "unrealized_pl", 0.0) or 0.0)
+            total_upl += upl
+            info["positions"].append({
+                "symbol": str(p.symbol),
+                "qty": float(p.qty),
+                "market_value": float(getattr(p, "market_value", 0.0) or 0.0),
+                "unrealized_pl": upl,
+            })
+        info["unrealized_pnl_usd"] = total_upl
+        info["ok"] = True
+    except Exception as e:
+        info["error"] = f"{type(e).__name__}: {e}"
+    return info
 
 
 @app.get("/api/regime")

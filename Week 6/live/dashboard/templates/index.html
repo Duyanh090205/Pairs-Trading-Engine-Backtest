@@ -19,6 +19,8 @@
     <div class="card">
       <h2>P&amp;L</h2>
       <div hx-get="/api/pnl" hx-trigger="load, every 10s" hx-swap="innerHTML">Loading…</div>
+      <div hx-get="/api/broker" hx-trigger="load, every 20s" hx-swap="innerHTML"
+           style="margin-top:8px">…</div>
     </div>
 
     <div class="card wide">
@@ -113,10 +115,22 @@
         const halted = data.kill_switch_halted ? '🔴 HALTED' : '🟢 RUNNING';
         const hard = data.hardstop_tripped ? '🔴 TRIPPED' : '🟢 OK';
         const db = data.db_exists ? '🟢 OK' : '🔴 MISSING';
+        // Only surface a halt reason when ACTUALLY halted. The reason field
+        // persists (stale) after a clear, so showing it unconditionally looks
+        // alarming when everything is fine.
+        let extra = '';
+        if (data.kill_switch_halted && data.kill_switch_reason) {
+          extra = `<br><small style="color:#dc2626">⚠️ halt reason: ${data.kill_switch_reason}</small>`;
+        } else if (data.kill_switch_reason) {
+          extra = `<br><small class="muted">last cleared halt: ${data.kill_switch_reason} (not active)</small>`;
+        }
+        const dec = data.last_decision_date
+          ? `<br><small>last decision: <b>${data.last_decision_date}</b> · runs daily ~21:05 UTC (16:05 ET)</small>`
+          : '';
         return `<span>kill-switch: ${halted}</span> &nbsp;|&nbsp;
                 <span>hardstop: ${hard}</span> &nbsp;|&nbsp;
                 <span>state DB: ${db}</span>
-                ${data.kill_switch_reason ? `<br><small>halt reason: ${data.kill_switch_reason}</small>` : ''}`;
+                ${extra}${dec}`;
       }
 
       // -------- P&L card --------
@@ -147,15 +161,27 @@
         if (data.rows.length === 0) {
           return emptyState('Engine started — comparison populates after first closed trades.');
         }
-        let html = '<table><thead><tr><th>metric</th><th>backtest</th><th>live</th><th>delta</th></tr></thead><tbody>';
+        let html = '<table><thead><tr><th>metric</th><th>backtest</th><th>live</th><th>delta</th><th>note</th></tr></thead><tbody>';
         for (const r of data.rows) {
           html += `<tr><td>${r.metric}</td>
                        <td>${fmtNum(r.backtest)}</td>
                        <td>${fmtNum(r.live)}</td>
-                       <td>${fmtNum(r.delta)}</td></tr>`;
+                       <td>${fmtNum(r.delta)}</td>
+                       <td class="muted"><small>${r.note || ''}</small></td></tr>`;
         }
         html += '</tbody></table>';
         return html;
+      }
+
+      // -------- Broker snapshot (unrealized P&L / equity) --------
+      if (path === '/api/broker') {
+        if (!data.ok) {
+          return '<div class="muted"><small>unrealized P&L: — (broker unavailable)</small></div>';
+        }
+        const upl = data.unrealized_pnl_usd || 0;
+        const color = upl >= 0 ? '#16a34a' : '#dc2626';
+        return `<div>unrealized: <b style="color:${color}">${fmtUsd(upl)}</b></div>
+                <div class="muted"><small>equity: ${fmtUsd(data.equity)}</small></div>`;
       }
 
       // -------- Engine info footer --------
@@ -172,7 +198,63 @@
                 <span>Refreshed: ${refresh}</span>`;
       }
 
-      // -------- Generic table fallback (positions / orders / regime / log) --------
+      // -------- Open positions (human-readable legs + entry flag) --------
+      if (path === '/api/positions') {
+        if (!data.rows || data.rows.length === 0) {
+          return emptyState('No open positions yet — engine waits for first |Z| ≥ 3.0 signal at market close.');
+        }
+        let html = '<table><thead><tr><th>pair</th><th>position</th><th>β</th><th>notional A / B</th><th>entry Z</th><th>entry (UTC)</th></tr></thead><tbody>';
+        for (const r of data.rows) {
+          const dir = Number(r.direction);
+          const legs = dir === 1
+            ? `<span style="color:#16a34a">LONG ${r.side_a}</span> / <span style="color:#dc2626">SHORT ${r.side_b}</span>`
+            : `<span style="color:#dc2626">SHORT ${r.side_a}</span> / <span style="color:#16a34a">LONG ${r.side_b}</span>`;
+          const ez = Number(r.entry_z);
+          const ezFlag = (isFinite(ez) && Math.abs(ez) >= 5) ? ' ⚠️' : '';
+          const ets = r.entry_ts ? r.entry_ts.replace('T', ' ').slice(0, 19) : '—';
+          html += `<tr>
+            <td><b>${r.pair_id}</b></td>
+            <td>${legs}</td>
+            <td>${fmtNum(r.beta, 3)}</td>
+            <td>${fmtUsd(r.notional_a)} / ${fmtUsd(r.notional_b)}</td>
+            <td>${fmtNum(ez, 3)}${ezFlag}</td>
+            <td class="muted"><small>${ets}</small></td>
+          </tr>`;
+        }
+        html += '</tbody></table>';
+        return html;
+      }
+
+      // -------- Audit log (collapse consecutive duplicate events) --------
+      if (path === '/api/log') {
+        if (!data.rows || data.rows.length === 0) return emptyState('Log empty.');
+        const collapsed = [];
+        for (const row of data.rows) {
+          const last = collapsed[collapsed.length - 1];
+          if (last && last.event === row.event && last.message === row.message) {
+            last.count += 1;
+          } else {
+            collapsed.push({ ...row, count: 1 });
+          }
+        }
+        let html = '<table><thead><tr><th>time (UTC)</th><th>level</th><th>event</th><th>message</th></tr></thead><tbody>';
+        for (const r of collapsed) {
+          const lvlColor = (r.level === 'CRITICAL' || r.level === 'ERROR') ? '#dc2626'
+                          : (r.level === 'WARN' ? '#d97706' : '#6b7280');
+          const ts = r.ts ? r.ts.replace('T', ' ').slice(0, 19) : '—';
+          const mult = r.count > 1 ? ` <span class="muted">×${r.count}</span>` : '';
+          html += `<tr>
+            <td class="muted"><small>${ts}</small></td>
+            <td style="color:${lvlColor}">${r.level}</td>
+            <td>${r.event}${mult}</td>
+            <td><small>${r.message}</small></td>
+          </tr>`;
+        }
+        html += '</tbody></table>';
+        return html;
+      }
+
+      // -------- Generic table fallback (orders / regime) --------
       if (data.rows !== undefined) {
         if (data.rows.length === 0) {
           let hint = 'No data yet.';
