@@ -49,10 +49,21 @@ class ResidualProjector:
         self._anchor_shifts: dict[str, float] = {}
 
     def compute_residuals(self, trading_data: dict[str, pd.DataFrame],
-                          min_obs: int = 10) -> dict[str, pd.Series]:
+                          min_obs: int = 2) -> dict[str, pd.Series]:
         """Project + re-anchor. Returns dict[ticker] -> residual Series.
 
-        min_obs: matches backtest's run_v4_pipeline.run_fold_v4 (10 daily bars min).
+        min_obs=2: the LIVE engine runs day-by-day and only consumes the LATEST
+        residual value each day (main._run_daily_decisions pushes one point into
+        the formation-seeded ZTracker). The Z is computed from the 60-obs
+        formation seed + that one new point, so it does NOT need a full window of
+        trading obs. The backtest's run_v4_pipeline.run_fold_v4 uses min_obs=10
+        because it scores a whole month-fold at once (always >=10 obs); applying
+        that gate to the day-by-day live engine wrongly blocks the first ~9
+        trading days of every month (the 'too few aligned trading obs' crash).
+        2 is the floor: >=2 aligned obs are needed to compute one return. Day 1
+        of a month (1 obs, no return) is correctly skipped — its residual would
+        be pinned to the stale formation-end anchor with no new information.
+        Residual/Z MATH is unchanged; only the gate is relaxed (live-only).
         """
         raw = project_residual(
             trading_data, self.loadings_W, self.tickers, min_obs=min_obs,
