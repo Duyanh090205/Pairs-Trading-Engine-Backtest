@@ -306,8 +306,16 @@ class LiveEngine:
                     adjustment="split",
                 )
                 resp = client.get_stock_bars(req)
+                # BarSet.__getitem__ raises KeyError ("No key X was found") for any
+                # symbol Alpaca omitted (no bars in window). That access used to sit
+                # inside this try, so the FIRST missing symbol aborted the WHOLE batch
+                # via the except below — silently dropping every later ticker in it
+                # (observed: 407/525 pulled, starving the residual cross-section so
+                # 6/10 pairs got no Z). .data is a plain dict; .get skips a missing
+                # symbol individually and lets the rest of the batch load.
+                bar_data = resp.data if hasattr(resp, "data") else {}
                 for tk in batch:
-                    bars = resp[tk] if hasattr(resp, "__getitem__") else resp.data.get(tk, [])
+                    bars = bar_data.get(tk, [])
                     if not bars:
                         continue
                     rows = [{"date": b.timestamp.astimezone(timezone.utc).date(),
