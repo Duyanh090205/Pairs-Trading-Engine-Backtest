@@ -53,7 +53,8 @@ from live.monitor.kill_switch import KillSwitchThresholds, evaluate as evaluate_
 from live.safety import hardstop  # noqa: E402
 from live.state.persist import (  # noqa: E402
     connect, get_last_decision_date, get_or_set_session_equity,
-    init_db, load_z_buffer, log_event, save_z_buffer, set_last_decision_date,
+    init_db, load_z_buffer, log_event, save_z_buffer, save_z_history,
+    set_last_decision_date,
 )
 
 ENTRY_Z = float(_os.environ.get("ENTRY_Z", "3.0"))
@@ -266,6 +267,9 @@ class LiveEngine:
                 continue
             ctx.last_z = z
             n_with_z += 1
+            # Record one Z point/day for the dashboard Z-trajectory chart.
+            with connect(STATE_DB_PATH) as conn:
+                save_z_history(conn, today.isoformat(), ctx.pair_id, z)
             d = decide(ctx.current_state, z, entry_z=ENTRY_Z, hard_sl_z=HARD_SL_Z)
             if d.action == "hold":
                 n_hold += 1

@@ -809,6 +809,69 @@ def pnl():
     }
 
 
+@app.get("/api/z_history")
+def z_history(days: int = 30):
+    """Daily Z snapshot per pair (for the Z-trajectory chart) over the last N days."""
+    rows = _safe_query(
+        "SELECT decision_date, pair_id, z FROM z_history "
+        "WHERE decision_date >= date('now', ?) "
+        "ORDER BY decision_date ASC, pair_id ASC",
+        (f"-{int(days)} days",),
+    )
+    series: dict[str, list] = {}
+    for r in rows:
+        series.setdefault(r["pair_id"], []).append(
+            {"date": r["decision_date"], "z": r["z"]})
+    return {
+        "entry_z": float(os.environ.get("ENTRY_Z", "3.0")),
+        "hard_sl_z": float(os.environ.get("HARD_SL_Z", "5.0")),
+        "series": series,
+    }
+
+
+@app.get("/api/health_summary")
+def health_summary():
+    """One-glance daily health rollup: engine + decision + data coverage + P&L."""
+    from datetime import datetime, timezone
+    out: dict[str, Any] = {"server_time_utc": datetime.now(timezone.utc).isoformat()}
+    try:
+        from live.main import get_engine
+        eng = get_engine()
+        out["engine_running"] = eng is not None
+        if eng is not None:
+            out["pairs_loaded"] = len(eng.pair_contexts)
+            out["pairs_active"] = sum(
+                1 for c in eng.pair_contexts.values() if c.last_z is not None)
+    except Exception:
+        out["engine_running"] = False
+    if _DB.exists():
+        try:
+            with _conn() as conn:
+                ks = conn.execute("SELECT halted FROM kill_switch WHERE id = 1").fetchone()
+                out["halted"] = bool(ks["halted"]) if ks else False
+                d = conn.execute("SELECT last_decision_date FROM engine_session WHERE id = 1").fetchone()
+                out["last_decision_date"] = (
+                    d["last_decision_date"] if d and d["last_decision_date"] else None)
+                ds = conn.execute(
+                    "SELECT message FROM audit_log WHERE event = 'decision_summary' "
+                    "ORDER BY id DESC LIMIT 1").fetchone()
+                out["last_decision_summary"] = ds["message"] if ds else None
+                pc = conn.execute(
+                    "SELECT message FROM audit_log WHERE event = 'pull_coverage' "
+                    "ORDER BY id DESC LIMIT 1").fetchone()
+                out["last_pull_coverage"] = pc["message"] if pc else None
+                op = conn.execute(
+                    "SELECT COUNT(*) AS n FROM positions WHERE exit_ts IS NULL").fetchone()
+                out["open_positions"] = int(op["n"]) if op else 0
+                rp = conn.execute(
+                    "SELECT COALESCE(SUM(realized_pnl), 0) AS r FROM positions "
+                    "WHERE exit_ts IS NOT NULL").fetchone()
+                out["realized_pnl_usd"] = float(rp["r"]) if rp else 0.0
+        except Exception as e:
+            out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
 @app.get("/api/broker")
 def broker():
     """Live broker snapshot: account equity + unrealized P&L on open positions.

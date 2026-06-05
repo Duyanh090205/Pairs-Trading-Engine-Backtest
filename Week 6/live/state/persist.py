@@ -75,6 +75,21 @@ def _apply_migrations(conn: sqlite3.Connection) -> None:
         "updated_ts TEXT NOT NULL)"
     )
 
+    # z_history: one Z snapshot per pair per decision day — feeds the daily
+    # Z-trajectory chart ("how long has a pair been deviating"). Append-only,
+    # de-duped per (decision_date, pair_id) so re-running/forcing a day overwrites.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS z_history ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "decision_date TEXT NOT NULL, "
+        "pair_id TEXT NOT NULL, "
+        "z REAL NOT NULL, "
+        "ts TEXT NOT NULL)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_zhist_pair ON z_history(pair_id, decision_date)"
+    )
+
 
 def save_z_buffer(conn: sqlite3.Connection, pair_id: str,
                   values: list[float]) -> None:
@@ -86,6 +101,22 @@ def save_z_buffer(conn: sqlite3.Connection, pair_id: str,
         "ON CONFLICT(pair_id) DO UPDATE SET buf_json = excluded.buf_json, "
         "updated_ts = excluded.updated_ts",
         (pair_id, json.dumps(values), datetime.now(timezone.utc).isoformat()),
+    )
+
+
+def save_z_history(conn: sqlite3.Connection, decision_date: str,
+                   pair_id: str, z: float) -> None:
+    """Append one Z snapshot for the daily Z-trajectory chart. De-dupes per
+    (decision_date, pair_id) so forcing a decision multiple times in a day keeps
+    only the latest Z for that day (no duplicate points on the chart)."""
+    from datetime import datetime, timezone
+    conn.execute(
+        "DELETE FROM z_history WHERE decision_date = ? AND pair_id = ?",
+        (decision_date, pair_id),
+    )
+    conn.execute(
+        "INSERT INTO z_history (decision_date, pair_id, z, ts) VALUES (?, ?, ?, ?)",
+        (decision_date, pair_id, float(z), datetime.now(timezone.utc).isoformat()),
     )
 
 

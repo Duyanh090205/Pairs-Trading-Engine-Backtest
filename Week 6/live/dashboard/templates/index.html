@@ -16,6 +16,11 @@
   </section>
 
   <div class="grid">
+    <div class="card wide">
+      <h2>Daily Health Check</h2>
+      <div hx-get="/api/health_summary" hx-trigger="load, every 15s" hx-swap="innerHTML">Loading…</div>
+    </div>
+
     <div class="card">
       <h2>P&amp;L</h2>
       <div hx-get="/api/pnl" hx-trigger="load, every 10s" hx-swap="innerHTML">Loading…</div>
@@ -32,6 +37,11 @@
     <div class="card wide">
       <h2>Z-Score Monitor <small>(per pair vs ±3 entry / ±5 stop)</small></h2>
       <div hx-get="/api/pairs_z" hx-trigger="load, every 30s" hx-swap="innerHTML">Loading…</div>
+    </div>
+
+    <div class="card wide">
+      <h2>Z Trajectory <small>(daily Z per pair — how long it's been deviating)</small></h2>
+      <div hx-get="/api/z_history" hx-trigger="load, every 60s" hx-swap="innerHTML">Loading…</div>
     </div>
 
     <div class="card">
@@ -52,6 +62,11 @@
     <div class="card wide">
       <h2>Recent Orders</h2>
       <div hx-get="/api/orders" hx-trigger="load, every 10s" hx-swap="innerHTML">Loading…</div>
+    </div>
+
+    <div class="card wide">
+      <h2>Closed Trades <small>(realized P&amp;L per trade)</small></h2>
+      <div hx-get="/api/trades" hx-trigger="load, every 30s" hx-swap="innerHTML">Loading…</div>
     </div>
 
     <div class="card wide">
@@ -226,6 +241,97 @@
           const val = `<span style="display:inline-block;width:50px;text-align:right;font-size:12px;color:${c};font-weight:600">${z >= 0 ? '+' : ''}${z.toFixed(2)}</span>`;
           html += `<div style="display:flex;align-items:center;gap:8px;margin:4px 0">${label}${track}${val}</div>`;
         }
+        return html;
+      }
+
+      // -------- Daily Health Check (one-glance rollup) --------
+      if (path === '/api/health_summary') {
+        const now = data.server_time_utc ? new Date(data.server_time_utc) : new Date();
+        const todayUtc = now.toISOString().slice(0, 10);
+        const decidedToday = data.last_decision_date === todayUtc;
+        const active = data.pairs_active, loaded = data.pairs_loaded;
+        const pairsOk = (active !== undefined && loaded !== undefined && active === loaded && loaded > 0);
+        let cand = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 21, 5, 0));
+        if (decidedToday || cand <= now) cand = new Date(cand.getTime() + 864e5);
+        while (cand.getUTCDay() === 0 || cand.getUTCDay() === 6) cand = new Date(cand.getTime() + 864e5);
+        const ms = cand - now, dd = Math.floor(ms / 864e5), hh = Math.floor((ms % 864e5) / 36e5), mm = Math.floor((ms % 36e5) / 6e4);
+        const countdown = (dd > 0 ? dd + 'd ' : '') + hh + 'h ' + mm + 'm';
+        const allOk = data.engine_running && !data.halted && pairsOk;
+        const banner = allOk
+          ? `<div style="font-size:15px;font-weight:700;color:#16a34a">🟢 All systems healthy</div>`
+          : `<div style="font-size:15px;font-weight:700;color:#dc2626">🔴 Check the items below</div>`;
+        const row = (icon, label, val) => `<tr><td style="padding:2px 12px 2px 0;white-space:nowrap">${icon} ${label}</td><td><b>${val}</b></td></tr>`;
+        const pnl = data.realized_pnl_usd;
+        let rows = '';
+        rows += row(data.engine_running ? '🟢' : '🔴', 'Engine', data.engine_running ? 'running' : 'OFFLINE');
+        rows += row(data.halted ? '🔴' : '🟢', 'Kill-switch', data.halted ? 'HALTED' : 'ok');
+        rows += row(decidedToday ? '🟢' : '🟡', 'Decided today', (data.last_decision_date || '—') + (decidedToday ? '' : ' (awaiting close)'));
+        rows += row(pairsOk ? '🟢' : (active === 0 ? '🟡' : '🔴'), 'Pairs active', active === undefined ? '—' : active + '/' + loaded);
+        rows += row('•', 'Open positions', data.open_positions === undefined ? '—' : data.open_positions);
+        rows += `<tr><td style="padding:2px 12px 2px 0">• Realized P&amp;L</td><td><b style="color:${(pnl || 0) >= 0 ? '#16a34a' : '#dc2626'}">${fmtUsd(pnl)}</b></td></tr>`;
+        rows += `<tr><td style="padding:2px 12px 2px 0;white-space:nowrap">⏱️ Next decision</td><td><b>${countdown}</b> <small class="muted">(${cand.toUTCString().replace(' GMT', ' UTC')})</small></td></tr>`;
+        let extra = '';
+        if (data.last_decision_summary) extra += `<div class="muted" style="margin-top:6px"><small>📋 ${data.last_decision_summary}</small></div>`;
+        if (data.last_pull_coverage) extra += `<div class="muted"><small>📡 ${data.last_pull_coverage}</small></div>`;
+        return `${banner}<table style="margin-top:6px;font-size:13px">${rows}</table>${extra}`;
+      }
+
+      // -------- Z Trajectory (daily Z lines vs ±3 / ±5 bands) --------
+      if (path === '/api/z_history') {
+        const series = data.series || {};
+        const pairs = Object.keys(series);
+        if (pairs.length === 0) {
+          return emptyState('No Z history yet — one point per pair is recorded at each daily close; the chart fills in over the coming days.');
+        }
+        const EZ = data.entry_z, SL = data.hard_sl_z, RANGE = 5.5;
+        const dateSet = new Set();
+        pairs.forEach(p => series[p].forEach(pt => dateSet.add(pt.date)));
+        const dates = Array.from(dateSet).sort();
+        const dateIdx = {}; dates.forEach((d, i) => dateIdx[d] = i);
+        const W = 720, H = 220, padL = 30, padR = 92, padT = 12, padB = 22;
+        const plotW = W - padL - padR, plotH = H - padT - padB;
+        const xOf = i => padL + (dates.length <= 1 ? plotW / 2 : (i / (dates.length - 1)) * plotW);
+        const yOf = z => padT + plotH / 2 - (Math.max(-RANGE, Math.min(RANGE, z)) / RANGE) * (plotH / 2);
+        const colors = ['#2563eb', '#16a34a', '#dc2626', '#f59e0b', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#ea580c', '#0d9488'];
+        const band = (z, col, lbl) => `<line x1="${padL}" y1="${yOf(z).toFixed(1)}" x2="${padL + plotW}" y2="${yOf(z).toFixed(1)}" stroke="${col}" stroke-dasharray="3 3" opacity="0.55"/><text x="${padL + plotW + 4}" y="${(yOf(z) + 3).toFixed(1)}" fill="${col}">${lbl}</text>`;
+        let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:260px;font-size:10px">`;
+        svg += band(0, '#999', '0') + band(EZ, '#f59e0b', '+' + EZ) + band(-EZ, '#f59e0b', '-' + EZ) + band(SL, '#dc2626', '+' + SL) + band(-SL, '#dc2626', '-' + SL);
+        pairs.forEach((p, pi) => {
+          const col = colors[pi % colors.length];
+          const pts = series[p].slice().sort((a, b) => a.date < b.date ? -1 : 1);
+          if (pts.length === 1) {
+            svg += `<circle cx="${xOf(dateIdx[pts[0].date]).toFixed(1)}" cy="${yOf(pts[0].z).toFixed(1)}" r="3" fill="${col}"/>`;
+          } else {
+            const coords = pts.map(pt => `${xOf(dateIdx[pt.date]).toFixed(1)},${yOf(pt.z).toFixed(1)}`);
+            svg += `<polyline points="${coords.join(' ')}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+          }
+        });
+        svg += `</svg>`;
+        let legend = '<div style="margin-top:4px;font-size:11px;line-height:1.7">';
+        pairs.forEach((p, pi) => {
+          const col = colors[pi % colors.length];
+          const last = series[p][series[p].length - 1];
+          legend += `<span style="margin-right:12px;white-space:nowrap"><b style="color:${col}">▬</b> ${p} <b>${last.z >= 0 ? '+' : ''}${last.z.toFixed(2)}</b></span>`;
+        });
+        legend += '</div>';
+        const note = dates.length === 1 ? '<div class="muted"><small>Only today so far — lines form as more daily points accumulate.</small></div>' : '';
+        return svg + legend + note;
+      }
+
+      // -------- Closed Trades journal --------
+      if (path === '/api/trades') {
+        if (!data.rows || data.rows.length === 0) {
+          return emptyState('No closed trades yet — fills in as positions close.');
+        }
+        let html = '<table><thead><tr><th>pair</th><th>entry → exit</th><th>entry Z</th><th>exit</th><th>realized P&amp;L</th></tr></thead><tbody>';
+        for (const r of data.rows) {
+          const pnl = Number(r.realized_pnl);
+          const col = isFinite(pnl) ? (pnl >= 0 ? '#16a34a' : '#dc2626') : '#888';
+          const ein = r.entry_ts ? r.entry_ts.slice(0, 10) : '—';
+          const eout = r.exit_ts ? r.exit_ts.slice(0, 10) : '—';
+          html += `<tr><td><b>${r.pair_id}</b></td><td class="muted"><small>${ein} → ${eout}</small></td><td>${fmtNum(r.entry_z, 2)}</td><td><small>${r.exit_reason || '—'}</small></td><td><b style="color:${col}">${fmtUsd(pnl)}</b></td></tr>`;
+        }
+        html += '</tbody></table>';
         return html;
       }
 
