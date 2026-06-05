@@ -113,6 +113,51 @@ def engine_info():
     return info
 
 
+@app.get("/api/pairs_z")
+def pairs_z():
+    """Per-pair live Z snapshot vs entry/hard-stop bands.
+
+    Read-only diagnostic so the dashboard can show that the engine is alive and
+    'watching' each pair even on days it places no orders. ``last_z`` is the Z
+    computed on the most recent daily decision run (in-memory on the engine); it
+    is None until at least one decision has run since the last restart.
+    """
+    entry_z = float(os.environ.get("ENTRY_Z", "3.0"))
+    hard_sl_z = float(os.environ.get("HARD_SL_Z", "5.0"))
+    out: dict[str, Any] = {
+        "entry_z": entry_z,
+        "hard_sl_z": hard_sl_z,
+        "rows": [],
+    }
+    try:
+        from live.main import get_engine
+        engine = get_engine()
+        if engine is None:
+            out["error"] = "engine not running"
+            return out
+        rows = []
+        for pid, ctx in engine.pair_contexts.items():
+            z = ctx.last_z
+            rows.append({
+                "pair_id": pid,
+                "ticker_a": ctx.ticker_a,
+                "ticker_b": ctx.ticker_b,
+                "beta": round(ctx.beta, 4),
+                "state": ctx.current_state,   # 0 flat, +1 long, -1 short
+                "last_z": None if z is None else round(z, 3),
+                "abs_z": None if z is None else round(abs(z), 3),
+                "dist_to_entry": None if z is None else round(entry_z - abs(z), 3),
+                "armed": None if z is None else (abs(z) >= entry_z),
+                "last_decision_date": ctx.last_decision_date,
+            })
+        # Sort by closeness to the entry band (armed / nearest first)
+        rows.sort(key=lambda r: (r["abs_z"] is None, -(r["abs_z"] or 0.0)))
+        out["rows"] = rows
+    except Exception as e:
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
 @app.post("/api/admin/force_decision_now")
 async def force_decision_now(request: Request):
     """One-shot manual trigger for daily_decision (paper-only emergency lever).
