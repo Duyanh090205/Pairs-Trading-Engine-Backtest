@@ -29,6 +29,11 @@
            style="overflow-x:auto">Loading…</div>
     </div>
 
+    <div class="card wide">
+      <h2>Z-Score Monitor <small>(per pair vs ±3 entry / ±5 stop)</small></h2>
+      <div hx-get="/api/pairs_z" hx-trigger="load, every 30s" hx-swap="innerHTML">Loading…</div>
+    </div>
+
     <div class="card">
       <h2>Regime (Composite Z-score)</h2>
       <div hx-get="/api/regime" hx-trigger="load, every 60s" hx-swap="innerHTML">Loading…</div>
@@ -182,6 +187,46 @@
         const color = upl >= 0 ? '#16a34a' : '#dc2626';
         return `<div>unrealized: <b style="color:${color}">${fmtUsd(upl)}</b></div>
                 <div class="muted"><small>equity: ${fmtUsd(data.equity)}</small></div>`;
+      }
+
+      // -------- Z-Score monitor (per-pair bars vs ±3 entry / ±5 stop) --------
+      if (path === '/api/pairs_z') {
+        if (data.error) return emptyState('Z monitor unavailable: ' + data.error);
+        const rows = data.rows || [];
+        if (rows.length === 0) return emptyState('No pairs loaded.');
+        const withZ = rows.filter(r => r.last_z !== null && r.last_z !== undefined);
+        if (withZ.length === 0) {
+          return emptyState('No Z yet — engine decides at daily close (~21:05 UTC). After a restart, awaiting the next decision.');
+        }
+        const EZ = data.entry_z, SL = data.hard_sl_z, SCALE = 5.5;
+        const pos = z => Math.max(2, Math.min(98, 50 + (z / SCALE) * 50));
+        const colorOf = az => az >= SL ? '#dc2626' : az >= EZ ? '#f59e0b' : az >= 2 ? '#eab308' : '#16a34a';
+        const refLine = (p, col) => `<div style="position:absolute;left:${p}%;top:0;bottom:0;width:1px;background:${col};opacity:.55"></div>`;
+        let html = `<div class="muted" style="margin-bottom:8px"><small>`
+          + `${data.n_with_z}/${data.n_total} pairs active &nbsp;·&nbsp; `
+          + `<b style="color:#16a34a">▮</b> calm &nbsp; `
+          + `<b style="color:#eab308">▮</b> watching &nbsp; `
+          + `<b style="color:#f59e0b">▮</b> ±${EZ} entry &nbsp; `
+          + `<b style="color:#dc2626">▮</b> ±${SL} stop</small></div>`;
+        for (const r of rows) {
+          const label = `<span style="display:inline-block;width:108px;font-size:12px">${r.pair_id}</span>`;
+          if (r.last_z === null || r.last_z === undefined) {
+            html += `<div style="display:flex;align-items:center;gap:8px;margin:4px 0">${label}<span class="muted"><small>— no Z (data shortfall)</small></span></div>`;
+            continue;
+          }
+          const z = r.last_z, az = Math.abs(z), p = pos(z), c = colorOf(az);
+          const left = z >= 0 ? 50 : p, width = Math.abs(p - 50);
+          const track = `<div style="position:relative;height:18px;background:rgba(127,127,127,.18);border-radius:3px;flex:1">`
+            + `<div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#9994"></div>`
+            + refLine(pos(EZ), '#f59e0b') + refLine(pos(-EZ), '#f59e0b')
+            + refLine(pos(SL), '#dc2626') + refLine(pos(-SL), '#dc2626')
+            + `<div style="position:absolute;left:${left}%;width:${width}%;top:3px;bottom:3px;background:${c};border-radius:2px"></div>`
+            + (r.armed ? `<div style="position:absolute;left:${p}%;top:-2px;font-size:11px">⚠️</div>` : '')
+            + `</div>`;
+          const val = `<span style="display:inline-block;width:50px;text-align:right;font-size:12px;color:${c};font-weight:600">${z >= 0 ? '+' : ''}${z.toFixed(2)}</span>`;
+          html += `<div style="display:flex;align-items:center;gap:8px;margin:4px 0">${label}${track}${val}</div>`;
+        }
+        return html;
       }
 
       // -------- Engine info footer --------
