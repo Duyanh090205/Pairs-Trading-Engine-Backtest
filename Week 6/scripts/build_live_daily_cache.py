@@ -60,7 +60,11 @@ def pull_daily_adjusted(client, ticker: str, start: datetime, end: datetime) -> 
         resp = client.get_stock_bars(req)
     except Exception as e:
         return pd.DataFrame()
-    bars = resp[ticker] if hasattr(resp, "__getitem__") else resp.data.get(ticker, [])
+    # resp[ticker] raises KeyError if Alpaca returned no bars for this symbol, and
+    # that access is OUTSIDE the try above — use .data.get so a missing symbol
+    # yields an empty frame (counted as empty) instead of crashing the build.
+    bar_data = resp.data if hasattr(resp, "data") else {}
+    bars = bar_data.get(ticker, [])
     rows = []
     for b in bars:
         rows.append({

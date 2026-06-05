@@ -244,10 +244,13 @@ class LiveEngine:
             return
 
         bar_ts = today.isoformat() + "T20:00:00Z"
+        n_total = len(self.pair_contexts)
+        n_no_residual = n_z_none = n_with_z = n_hold = n_action = 0
         for pair_id, ctx in self.pair_contexts.items():
             ra = residuals.get(ctx.ticker_a)
             rb = residuals.get(ctx.ticker_b)
             if ra is None or rb is None or ra.dropna().empty or rb.dropna().empty:
+                n_no_residual += 1
                 continue
             # Latest residual values
             ra_last = float(ra.dropna().iloc[-1])
@@ -259,14 +262,31 @@ class LiveEngine:
             with connect(STATE_DB_PATH) as conn:
                 save_z_buffer(conn, ctx.pair_id, ctx.z_tracker.to_list())
             if z is None:
+                n_z_none += 1
                 continue
             ctx.last_z = z
+            n_with_z += 1
             d = decide(ctx.current_state, z, entry_z=ENTRY_Z, hard_sl_z=HARD_SL_Z)
             if d.action == "hold":
+                n_hold += 1
                 continue
+            n_action += 1
             await self._execute_action(ctx, d, bar_ts, trading_data)
             ctx.current_state = d.new_state
             ctx.last_decision_date = today.isoformat()
+
+        # Observability: one DB summary per decision so "engine ran but only N/M
+        # pairs had a Z" is visible in /api/log immediately (no stderr archaeology).
+        # n_no_residual>0 means a data/pull shortfall silently disabled pairs.
+        lvl = "WARN" if (n_no_residual or n_z_none) else "INFO"
+        try:
+            with connect(STATE_DB_PATH) as conn:
+                log_event(conn, "decision_summary", lvl,
+                          f"{today.isoformat()}: {n_with_z}/{n_total} pairs had Z "
+                          f"(no_residual={n_no_residual}, z_none={n_z_none}, "
+                          f"hold={n_hold}, actions={n_action})")
+        except Exception as e:
+            logger.warning(f"could not log decision_summary: {e}")
 
     async def _pull_recent_daily_bars(self, today: date) -> dict:
         """REST pull daily bars for factor universe. Returns dict[ticker] -> DataFrame.
@@ -327,7 +347,20 @@ class LiveEngine:
                     out[tk] = df[["log_close"]]
             except Exception as e:
                 logger.warning(f"REST batch failed for {batch[:3]}...: {e}")
-        logger.info(f"Pulled daily bars for {len(out)}/{len(ticker_list)} tickers")
+        n_pulled, n_total = len(out), len(ticker_list)
+        logger.info(f"Pulled daily bars for {n_pulled}/{n_total} tickers")
+        # Observability: surface an incomplete pull in the DB (not just stderr).
+        # A silent data shortfall starves the residual cross-section and disables
+        # pairs — exactly the failure that hid for days. Now it lands in /api/log.
+        if n_total and n_pulled < n_total:
+            try:
+                with connect(STATE_DB_PATH) as conn:
+                    lvl = "WARN" if n_pulled < n_total * 0.98 else "INFO"
+                    log_event(conn, "pull_coverage", lvl,
+                              f"Pulled {n_pulled}/{n_total} factor tickers "
+                              f"({100.0 * n_pulled / n_total:.1f}%)")
+            except Exception as e:
+                logger.warning(f"could not log pull_coverage: {e}")
         return out
 
     async def _execute_action(self, ctx: PairContext, decision, bar_ts: str,
@@ -354,7 +387,16 @@ class LiveEngine:
             price_a = math.exp(float(trading_data[ctx.ticker_a]["log_close"].iloc[-1]))
             price_b = math.exp(float(trading_data[ctx.ticker_b]["log_close"].iloc[-1]))
         except Exception:
-            logger.error(f"Missing price for {ctx.pair_id}; skip")
+            # A skipped order (esp. an EXIT) must NOT be silent — a missed exit
+            # leaves a position open past its signal. Surface it in the DB.
+            logger.error(f"Missing price for {ctx.pair_id}; skip {decision.action}")
+            try:
+                with connect(STATE_DB_PATH) as conn:
+                    log_event(conn, "order_skipped", "ERROR",
+                              f"{ctx.pair_id} {decision.action} skipped: missing price "
+                              f"for {ctx.ticker_a}/{ctx.ticker_b}")
+            except Exception:
+                pass
             return
 
         # FIX BUG 4: floor (int) instead of round — never overshoot notional

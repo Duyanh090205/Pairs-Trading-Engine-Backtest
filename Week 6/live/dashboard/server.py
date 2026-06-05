@@ -102,6 +102,11 @@ def engine_info():
         if engine is not None:
             info["engine_running"] = True
             info["pairs_loaded"] = len(engine.pair_contexts)
+            # pairs_active = how many pairs actually have a Z (a silent data/pull
+            # shortfall shows up here as pairs_active < pairs_loaded).
+            info["pairs_active"] = sum(
+                1 for c in engine.pair_contexts.values() if c.last_z is not None
+            )
             info["universe_size"] = len(engine.universe_tickers)
             if engine._latest_ws_bar_ts:
                 # Most recent bar timestamp across all tickers
@@ -153,6 +158,11 @@ def pairs_z():
         # Sort by closeness to the entry band (armed / nearest first)
         rows.sort(key=lambda r: (r["abs_z"] is None, -(r["abs_z"] or 0.0)))
         out["rows"] = rows
+        # Health summary for the dashboard badge: how many pairs are actually
+        # active (have a Z). n_with_z < n_total means a silent shortfall.
+        out["n_total"] = len(rows)
+        out["n_with_z"] = sum(1 for r in rows if r["last_z"] is not None)
+        out["n_armed"] = sum(1 for r in rows if r["armed"])
     except Exception as e:
         out["error"] = f"{type(e).__name__}: {e}"
     return out

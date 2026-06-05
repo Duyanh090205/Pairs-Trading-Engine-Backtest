@@ -191,8 +191,23 @@
         }
         const refresh = new Date().toLocaleTimeString();
         const lastBar = data.last_bar_ts ? fmtUtc(data.last_bar_ts) : 'awaiting first bar';
+        // Pairs active badge: turns red when fewer pairs have a Z than were loaded
+        // (a silent data/pull shortfall). Once a decision has run, expect X = loaded.
+        const active = (data.pairs_active === undefined || data.pairs_active === null)
+          ? null : data.pairs_active;
+        let pairsTxt;
+        if (active === null) {
+          pairsTxt = `Pairs: ${data.pairs_loaded}`;
+        } else if (active === 0) {
+          // No Z yet = no decision has run since restart (not a shortfall).
+          pairsTxt = `Pairs: ${data.pairs_loaded} <small class="muted">(awaiting first decision)</small>`;
+        } else if (active < data.pairs_loaded) {
+          pairsTxt = `Pairs: <b style="color:#dc2626">${active}/${data.pairs_loaded} active ⚠️</b>`;
+        } else {
+          pairsTxt = `Pairs: <b style="color:#16a34a">${active}/${data.pairs_loaded} active</b>`;
+        }
         return `<span>Engine: 🟢 running</span> &nbsp;|&nbsp;
-                <span>Pairs: ${data.pairs_loaded}</span> &nbsp;|&nbsp;
+                <span>${pairsTxt}</span> &nbsp;|&nbsp;
                 <span>Universe: ${data.universe_size} tickers</span> &nbsp;|&nbsp;
                 <span>Last bar: ${lastBar}</span> &nbsp;|&nbsp;
                 <span>Refreshed: ${refresh}</span>`;
