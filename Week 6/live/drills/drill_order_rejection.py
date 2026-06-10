@@ -77,8 +77,9 @@ def main() -> int:
     req_ok = OrderRequest("OK_PAIR", bar_ts, "A", "OK", "buy", 5, "market")
     with connect(db) as conn:
         out_ok = submit_order(_WorkingBroker(), conn, req_ok, decision_price=200.0)
+    # normalize_status canonicalizes broker 'accepted' -> 'submitted'
     results.append(_check("engine continues processing other pairs after rejection",
-                          out_ok.status == "accepted" and out_ok.submitted))
+                          out_ok.status == "submitted" and out_ok.submitted))
 
     print()
     if all(results):
