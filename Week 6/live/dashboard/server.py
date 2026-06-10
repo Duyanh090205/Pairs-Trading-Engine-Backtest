@@ -483,12 +483,13 @@ async def finalize_eom_positions(request: Request):
 
             # Clear halt
             halt_row = conn.execute(
-                "SELECT halted FROM kill_switch WHERE id = 1"
+                "SELECT halted, reason FROM kill_switch WHERE id = 1"
             ).fetchone()
             if halt_row and halt_row["halted"]:
                 clear_halt(conn)
                 log_event(conn, "halt_cleared", "WARN",
-                          "kill_switch halt cleared after EOM positions finalized")
+                          "kill_switch halt cleared after EOM positions finalized "
+                          f"(was: {halt_row['reason']})")
                 summary["halt_cleared"] = True
 
             total_pnl = sum(d.get("realized_pnl", 0) for d in summary["details"]
@@ -589,12 +590,13 @@ async def revert_phantom_close(request: Request):
 
             # Clear halt if positions now match broker
             halt_row = conn.execute(
-                "SELECT halted FROM kill_switch WHERE id = 1"
+                "SELECT halted, reason FROM kill_switch WHERE id = 1"
             ).fetchone()
             if halt_row and halt_row["halted"]:
                 clear_halt(conn)
                 log_event(conn, "halt_cleared", "WARN",
-                          "kill_switch halt cleared after phantom close revert")
+                          "kill_switch halt cleared after phantom close revert "
+                          f"(was: {halt_row['reason']})")
                 summary["halt_cleared"] = True
     except Exception as e:
         logger.error(f"revert_phantom_close: {type(e).__name__}: {e}")
@@ -733,7 +735,9 @@ def status():
             ).fetchone()
             if row is not None:
                 halted = bool(row["halted"])
-                halt_reason = row["reason"]
+                # reason only meaningful while halted; legacy DB rows may still
+                # carry a stale reason from before clear_halt nulled it.
+                halt_reason = row["reason"] if halted else None
             # last_decision_date: lets the strip show whether the daily decision
             # loop actually ran (the loop is otherwise silent in the DB when it
             # places no orders).

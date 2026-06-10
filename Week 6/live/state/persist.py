@@ -177,9 +177,12 @@ def set_halt(conn: sqlite3.Connection, reason: str) -> None:
 
 
 def clear_halt(conn: sqlite3.Connection) -> None:
+    # reason is nulled so /api/status never shows a stale halt reason after a
+    # clear; the historical reason survives in audit_log (logged at every
+    # trip/clear call site).
     from datetime import datetime, timezone
     conn.execute(
-        "UPDATE kill_switch SET halted = 0, cleared_ts = ? WHERE id = 1",
+        "UPDATE kill_switch SET halted = 0, reason = NULL, cleared_ts = ? WHERE id = 1",
         (datetime.now(timezone.utc).isoformat(),),
     )
 
