@@ -113,12 +113,39 @@
     function emptyState(msg) {
       return `<div class="muted empty-state">${msg}</div>`;
     }
-    function fmtUtc(iso) {
+    // All user-facing times render in Tampa, FL time (America/New_York, ET).
+    // Storage/API stay UTC — only the display layer converts (DST-safe via Intl).
+    const ET_ZONE = 'America/New_York';
+    function fmtEt(iso) {
       if (!iso) return '—';
       try {
         const d = new Date(iso);
-        return d.toUTCString().replace(' GMT', ' UTC');
+        if (isNaN(d)) return iso;
+        const s = new Intl.DateTimeFormat('en-CA', {
+          timeZone: ET_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+        }).format(d);
+        return s.replace(',', '') + ' ET';
       } catch (e) { return iso; }
+    }
+    function etDate(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        if (isNaN(d)) return iso.slice(0, 10);
+        return new Intl.DateTimeFormat('en-CA', {
+          timeZone: ET_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+        }).format(d);
+      } catch (e) { return iso; }
+    }
+    // The engine's daily decision fires at a fixed 21:05 UTC — in ET that is
+    // 16:05 (winter) / 17:05 (summer). Compute today's equivalent dynamically.
+    function decisionTimeEt() {
+      const now = new Date();
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 21, 5, 0));
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: ET_ZONE, hour: '2-digit', minute: '2-digit', hour12: false,
+      }).format(d);
     }
     function fmtDuration(seconds) {
       if (!seconds || seconds < 0) return '—';
@@ -145,7 +172,7 @@
           extra = `<br><small class="muted">last cleared halt: ${data.kill_switch_reason} (not active)</small>`;
         }
         const dec = data.last_decision_date
-          ? `<br><small>last decision: <b>${data.last_decision_date}</b> · runs daily ~21:05 UTC (16:05 ET)</small>`
+          ? `<br><small>last decision: <b>${data.last_decision_date}</b> · runs daily ~${decisionTimeEt()} ET (21:05 UTC)</small>`
           : '';
         return `<span>kill-switch: ${halted}</span> &nbsp;|&nbsp;
                 <span>hardstop: ${hard}</span> &nbsp;|&nbsp;
@@ -155,10 +182,25 @@
 
       // -------- P&L card --------
       if (path === '/api/pnl') {
-        const pnl = data.realized_pnl_usd || 0;
-        const color = pnl >= 0 ? '#16a34a' : '#dc2626';
-        return `<div class="big" style="color:${color}">${fmtUsd(pnl)}</div>
+        // Headline = account P&L (equity − starting capital): the real money,
+        // straight from the broker. Falls back to the DB ledger if the broker
+        // snapshot is unavailable.
+        const hasAcct = data.account_pnl_usd != null;
+        const head = hasAcct ? data.account_pnl_usd : (data.realized_pnl_usd || 0);
+        const color = head >= 0 ? '#16a34a' : '#dc2626';
+        const led = data.realized_pnl_usd || 0;
+        const ledColor = led >= 0 ? '#16a34a' : '#dc2626';
+        const gap = data.ledger_gap_usd;
+        const gapWarn = (gap != null && Math.abs(gap) > 1)
+          ? ` <span style="color:#b45309" title="broker realized vs engine ledger">⚠ lệch ${fmtUsd(gap)}</span>`
+          : '';
+        const sub = hasAcct
+          ? `<div class="muted"><small>= equity ${fmtUsd(data.equity)} − vốn gốc ${fmtUsd(data.starting_capital)} (số thật của broker)</small></div>`
+          : `<div class="muted"><small>broker tạm không truy cập — đang hiện sổ engine</small></div>`;
+        return `<div class="big" style="color:${color}">${fmtUsd(head)}</div>
+                ${sub}
                 <div>open: ${data.open_positions} pairs</div>
+                <div class="muted"><small>ledger (sổ engine): <b style="color:${ledColor}">${fmtUsd(led)}</b>${gapWarn}</small></div>
                 <div class="muted">backtest predicted annual: ~$${data.backtest_predicted_annual_usd} (Sharpe ${data.backtest_sharpe})</div>`;
       }
 
@@ -211,7 +253,7 @@
         if (rows.length === 0) return emptyState('No pairs loaded.');
         const withZ = rows.filter(r => r.last_z !== null && r.last_z !== undefined);
         if (withZ.length === 0) {
-          return emptyState('No Z yet — engine decides at daily close (~21:05 UTC). After a restart, awaiting the next decision.');
+          return emptyState(`No Z yet — engine decides at daily close (~${decisionTimeEt()} ET). After a restart, awaiting the next decision.`);
         }
         const EZ = data.entry_z, SL = data.hard_sl_z, SCALE = 5.5;
         const pos = z => Math.max(2, Math.min(98, 50 + (z / SCALE) * 50));
@@ -247,12 +289,17 @@
       // -------- Daily Health Check (one-glance rollup) --------
       if (path === '/api/health_summary') {
         const now = data.server_time_utc ? new Date(data.server_time_utc) : new Date();
-        const todayUtc = now.toISOString().slice(0, 10);
-        const decidedToday = data.last_decision_date === todayUtc;
+        // "Today" in Tampa/ET — the decision fires at 21:05 UTC (afternoon ET),
+        // so its recorded date equals the ET calendar date. Comparing against the
+        // ET day keeps this row green during ET evenings (when UTC already rolled over).
+        const todayEt = etDate(now.toISOString());
+        const decidedToday = data.last_decision_date === todayEt;
         const active = data.pairs_active, loaded = data.pairs_loaded;
         const pairsOk = (active !== undefined && loaded !== undefined && active === loaded && loaded > 0);
         let cand = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 21, 5, 0));
-        if (decidedToday || cand <= now) cand = new Date(cand.getTime() + 864e5);
+        if (cand <= now) cand = new Date(cand.getTime() + 864e5);
+        // If that slot's decision already ran (e.g. forced manually), skip a day.
+        if (data.last_decision_date === cand.toISOString().slice(0, 10)) cand = new Date(cand.getTime() + 864e5);
         while (cand.getUTCDay() === 0 || cand.getUTCDay() === 6) cand = new Date(cand.getTime() + 864e5);
         const ms = cand - now, dd = Math.floor(ms / 864e5), hh = Math.floor((ms % 864e5) / 36e5), mm = Math.floor((ms % 36e5) / 6e4);
         const countdown = (dd > 0 ? dd + 'd ' : '') + hh + 'h ' + mm + 'm';
@@ -269,7 +316,7 @@
         rows += row(pairsOk ? '🟢' : (active === 0 ? '🟡' : '🔴'), 'Pairs active', active === undefined ? '—' : active + '/' + loaded);
         rows += row('•', 'Open positions', data.open_positions === undefined ? '—' : data.open_positions);
         rows += `<tr><td style="padding:2px 12px 2px 0">• Realized P&amp;L</td><td><b style="color:${(pnl || 0) >= 0 ? '#16a34a' : '#dc2626'}">${fmtUsd(pnl)}</b></td></tr>`;
-        rows += `<tr><td style="padding:2px 12px 2px 0;white-space:nowrap">⏱️ Next decision</td><td><b>${countdown}</b> <small class="muted">(${cand.toUTCString().replace(' GMT', ' UTC')})</small></td></tr>`;
+        rows += `<tr><td style="padding:2px 12px 2px 0;white-space:nowrap">⏱️ Next decision</td><td><b>${countdown}</b> <small class="muted">(${fmtEt(cand)})</small></td></tr>`;
         let extra = '';
         if (data.last_decision_summary) extra += `<div class="muted" style="margin-top:6px"><small>📋 ${data.last_decision_summary}</small></div>`;
         if (data.last_pull_coverage) extra += `<div class="muted"><small>📡 ${data.last_pull_coverage}</small></div>`;
@@ -327,8 +374,8 @@
         for (const r of data.rows) {
           const pnl = Number(r.realized_pnl);
           const col = isFinite(pnl) ? (pnl >= 0 ? '#16a34a' : '#dc2626') : '#888';
-          const ein = r.entry_ts ? r.entry_ts.slice(0, 10) : '—';
-          const eout = r.exit_ts ? r.exit_ts.slice(0, 10) : '—';
+          const ein = etDate(r.entry_ts);
+          const eout = etDate(r.exit_ts);
           html += `<tr><td><b>${r.pair_id}</b></td><td class="muted"><small>${ein} → ${eout}</small></td><td>${fmtNum(r.entry_z, 2)}</td><td><small>${r.exit_reason || '—'}</small></td><td><b style="color:${col}">${fmtUsd(pnl)}</b></td></tr>`;
         }
         html += '</tbody></table>';
@@ -340,8 +387,8 @@
         if (!data.engine_running) {
           return '<span class="muted">Engine offline (dashboard-only mode)</span>';
         }
-        const refresh = new Date().toLocaleTimeString();
-        const lastBar = data.last_bar_ts ? fmtUtc(data.last_bar_ts) : 'awaiting first bar';
+        const refresh = new Date().toLocaleTimeString('en-US', { timeZone: ET_ZONE, hour12: false }) + ' ET';
+        const lastBar = data.last_bar_ts ? fmtEt(data.last_bar_ts) : 'awaiting first bar';
         // Pairs active badge: turns red when fewer pairs have a Z than were loaded
         // (a silent data/pull shortfall). Once a decision has run, expect X = loaded.
         const active = (data.pairs_active === undefined || data.pairs_active === null)
@@ -369,7 +416,7 @@
         if (!data.rows || data.rows.length === 0) {
           return emptyState('No open positions yet — engine waits for first |Z| ≥ 3.0 signal at market close.');
         }
-        let html = '<table><thead><tr><th>pair</th><th>position</th><th>β</th><th>notional A / B</th><th>entry Z</th><th>entry (UTC)</th></tr></thead><tbody>';
+        let html = '<table><thead><tr><th>pair</th><th>position</th><th>β</th><th>notional A / B</th><th>entry Z</th><th>entry (ET)</th></tr></thead><tbody>';
         for (const r of data.rows) {
           const dir = Number(r.direction);
           const legs = dir === 1
@@ -377,7 +424,7 @@
             : `<span style="color:#dc2626">SHORT ${r.side_a}</span> / <span style="color:#16a34a">LONG ${r.side_b}</span>`;
           const ez = Number(r.entry_z);
           const ezFlag = (isFinite(ez) && Math.abs(ez) >= 5) ? ' ⚠️' : '';
-          const ets = r.entry_ts ? r.entry_ts.replace('T', ' ').slice(0, 19) : '—';
+          const ets = fmtEt(r.entry_ts);
           html += `<tr>
             <td><b>${r.pair_id}</b></td>
             <td>${legs}</td>
@@ -403,11 +450,11 @@
             collapsed.push({ ...row, count: 1 });
           }
         }
-        let html = '<table><thead><tr><th>time (UTC)</th><th>level</th><th>event</th><th>message</th></tr></thead><tbody>';
+        let html = '<table><thead><tr><th>time (ET)</th><th>level</th><th>event</th><th>message</th></tr></thead><tbody>';
         for (const r of collapsed) {
           const lvlColor = (r.level === 'CRITICAL' || r.level === 'ERROR') ? '#dc2626'
                           : (r.level === 'WARN' ? '#d97706' : '#6b7280');
-          const ts = r.ts ? r.ts.replace('T', ' ').slice(0, 19) : '—';
+          const ts = fmtEt(r.ts);
           const mult = r.count > 1 ? ` <span class="muted">×${r.count}</span>` : '';
           html += `<tr>
             <td class="muted"><small>${ts}</small></td>
@@ -436,14 +483,18 @@
           return emptyState(hint);
         }
         const cols = Object.keys(data.rows[0]);
+        const isTsCol = c => /_ts$/.test(c);
         let html = '<table><thead><tr>';
-        for (const c of cols) html += `<th>${c}</th>`;
+        for (const c of cols) html += `<th>${isTsCol(c) ? c + ' (ET)' : c}</th>`;
         html += '</tr></thead><tbody>';
         for (const row of data.rows) {
           html += '<tr>';
           for (const c of cols) {
             const v = row[c];
-            html += `<td>${v === null ? '—' : (typeof v === 'number' ? v.toFixed(4) : v)}</td>`;
+            const shown = v === null ? '—'
+              : (isTsCol(c) && typeof v === 'string') ? fmtEt(v)
+              : (typeof v === 'number' ? v.toFixed(4) : v);
+            html += `<td>${shown}</td>`;
           }
           html += '</tr>';
         }

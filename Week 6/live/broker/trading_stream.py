@@ -270,83 +270,20 @@ class TradingStreamHandler:
         ta, tb = pos["side_a"], pos["side_b"]
         direction = int(pos["direction"])
         entry_ts = pos["entry_ts"]
-        entry_side_a = "buy" if direction == 1 else "sell"
-        entry_side_b = "sell" if direction == 1 else "buy"
-        exit_side_a = "sell" if direction == 1 else "buy"
-        exit_side_b = "buy" if direction == 1 else "sell"
-
-        def _sum_filled(ticker: str, side: str, ts_op: str, ts_ref: str):
-            """Sum fills for this leg, filtering by filled_ts relative to
-            position.entry_ts. ts_op is '<=' (for entry side, count fills at
-            or before entry_ts) or '>' (for exit side, count fills strictly
-            after entry_ts so prior lifecycle's exits don't contaminate
-            today's just-opened position). Also returns qty-weighted
-            decision_price (0.0 when absent — legacy rows) for slippage."""
-            row = conn.execute(
-                f"SELECT SUM(fill_qty) AS q, "
-                f"SUM(fill_qty * fill_price) / NULLIF(SUM(fill_qty), 0) AS px, "
-                f"SUM(fill_qty * decision_price) / NULLIF(SUM(fill_qty), 0) AS dpx, "
-                f"MAX(filled_ts) AS ts "
-                f"FROM orders WHERE pair_id = ? AND ticker = ? "
-                f"AND side = ? AND status = 'filled' "
-                f"AND filled_ts {ts_op} ?",
-                (pair_id, ticker, side, ts_ref),
-            ).fetchone()
-            return (
-                float(row["q"]) if row and row["q"] else 0.0,
-                float(row["px"]) if row and row["px"] else 0.0,
-                float(row["dpx"]) if row and row["dpx"] else 0.0,
-                row["ts"] if row else None,
-            )
-
-        # Entry fills: at or before entry_ts (the position's entry timestamp).
-        # Exit fills: STRICTLY after entry_ts — this prevents the bug where a
-        # prior lifecycle's EOM exits get mixed with today's new entry and
-        # falsely close the position immediately.
-        eqa, epa, edpa, _ = _sum_filled(ta, entry_side_a, "<=", entry_ts)
-        eqb, epb, edpb, _ = _sum_filled(tb, entry_side_b, "<=", entry_ts)
-        xqa, xpa, xdpa, xtsa = _sum_filled(ta, exit_side_a, ">", entry_ts)
-        xqb, xpb, xdpb, xtsb = _sum_filled(tb, exit_side_b, ">", entry_ts)
-
-        # Both exit legs must be filled
-        if xqa <= 0 or xqb <= 0:
-            return
-        # Entry side must also be there (sanity)
-        if eqa <= 0 or eqb <= 0:
-            return
-
-        qty_a = min(eqa, xqa)
-        qty_b = min(eqb, xqb)
-        if direction == 1:
-            pnl_a = qty_a * (xpa - epa)         # long A
-            pnl_b = qty_b * (epb - xpb)         # short B
-        else:
-            pnl_a = qty_a * (epa - xpa)         # short A
-            pnl_b = qty_b * (xpb - epb)         # long B
-        realized_pnl = pnl_a + pnl_b
-
-        # exit_ts = latest of the two exit fills
-        exit_ts = max([t for t in (xtsa, xtsb) if t],
-                      default=datetime.now(timezone.utc).isoformat())
-
-        # Realized execution cost = broker slippage vs decision price across
-        # the 4 legs of THIS lifecycle, normalized to traded notional (bps).
-        # Convention (cost_overlay): BUY filled above decision = positive
-        # cost; SELL filled below decision = positive cost. Legacy rows with
-        # decision_price NULL/0 are excluded from both numerator and
-        # denominator (can't measure their slippage).
-        slip_usd = 0.0
-        traded_usd = 0.0
-        legs_slip = (
-            (entry_side_a, qty_a, epa, edpa), (entry_side_b, qty_b, epb, edpb),
-            (exit_side_a, qty_a, xpa, xdpa), (exit_side_b, qty_b, xpb, xdpb),
-        )
-        for side, q, fp, dp in legs_slip:
-            if q <= 0 or fp <= 0 or dp <= 0:
-                continue
-            slip_usd += q * ((fp - dp) if side == "buy" else (dp - fp))
-            traded_usd += q * dp
-        realized_cost_bps = slip_usd / traded_usd * 10_000 if traded_usd > 0 else 0.0
+        # Realized P&L from actual fills, scoped to THIS lifecycle so a prior
+        # round-trip of the same pair can't contaminate the averaged entry/exit
+        # prices. exit_ts=None: this is the live close of the latest lifecycle,
+        # so there are no later fills to exclude. Single source of truth so the
+        # live path, the EOM finalizer and the recompute endpoint never diverge.
+        from live.broker.pnl_calc import lifecycle_realized_pnl
+        res = lifecycle_realized_pnl(conn, pair_id, ta, tb, direction, entry_ts)
+        if res is None:
+            return  # both legs not yet fully filled — leave the position open
+        realized_pnl = res["realized_pnl"]
+        realized_cost_bps = res["realized_cost_bps"]
+        pnl_a, pnl_b = res["pnl_a"], res["pnl_b"]
+        qty_a, qty_b = res["qty_a"], res["qty_b"]
+        exit_ts = res["exit_ts"] or datetime.now(timezone.utc).isoformat()
 
         # exit_z and exit_reason: trade_update has no Z context, so write
         # NULL exit_z and exit_reason='zero_cross' (the normal exit path).

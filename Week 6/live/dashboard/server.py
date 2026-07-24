@@ -358,6 +358,8 @@ async def finalize_eom_positions(request: Request):
     """
     from datetime import datetime, timezone
 
+    from live.broker.pnl_calc import lifecycle_realized_pnl
+
     token_expected = os.environ.get("ADMIN_TOKEN")
     if not token_expected:
         return JSONResponse({"error": "ADMIN_TOKEN not configured"}, status_code=503)
@@ -398,66 +400,23 @@ async def finalize_eom_positions(request: Request):
                 direction = int(pos["direction"])
                 entry_ts = pos["entry_ts"]
 
-                # Entry leg sides per position direction
-                # direction=+1: long A (buy), short B (sell)
-                # direction=-1: short A (sell), long B (buy)
-                entry_side_a = "buy" if direction == 1 else "sell"
-                entry_side_b = "sell" if direction == 1 else "buy"
-                exit_side_a = "sell" if direction == 1 else "buy"
-                exit_side_b = "buy" if direction == 1 else "sell"
-
-                # Find entry + exit fills for each leg.
-                # Use side filter only — legacy fills from before status
-                # normalization fix have filled_ts=NULL so any timestamp
-                # filter would exclude them. Per-pair lifecycle: same side
-                # appears at most once (entry OR exit) so side is enough.
-                def _find_fill(ticker, side):
-                    row = conn.execute(
-                        "SELECT SUM(fill_qty) AS qty, "
-                        "SUM(fill_qty * fill_price) / NULLIF(SUM(fill_qty), 0) AS px "
-                        "FROM orders WHERE pair_id = ? AND ticker = ? "
-                        "AND side = ? AND status = 'filled'",
-                        (pair_id, ticker, side),
-                    ).fetchone()
-                    return (
-                        float(row["qty"]) if row and row["qty"] else 0.0,
-                        float(row["px"]) if row and row["px"] else 0.0,
-                    )
-
-                entry_a_qty, entry_a_px = _find_fill(ta, entry_side_a)
-                entry_b_qty, entry_b_px = _find_fill(tb, entry_side_b)
-                exit_a_qty, exit_a_px = _find_fill(ta, exit_side_a)
-                exit_b_qty, exit_b_px = _find_fill(tb, exit_side_b)
-
-                if exit_a_qty == 0 or exit_b_qty == 0:
+                # Realized P&L from actual fills via the shared, lifecycle-scoped
+                # helper (single source of truth). exit_ts=None: the finalizer
+                # only ever runs on currently-open (latest) lifecycles, so there
+                # are no later fills to exclude. The helper attributes legacy
+                # NULL-filled_ts fills to a pair's first lifecycle.
+                res = lifecycle_realized_pnl(
+                    conn, pair_id, ta, tb, direction, entry_ts)
+                if res is None:
                     summary["details"].append({
                         "pair_id": pair_id, "skipped": "exit fills not found"
                     })
                     continue
 
-                # P&L per leg using min qty (handle partial mismatch)
-                qty_a = min(entry_a_qty, exit_a_qty)
-                qty_b = min(entry_b_qty, exit_b_qty)
-                if direction == 1:
-                    pnl_a = qty_a * (exit_a_px - entry_a_px)        # long A
-                    pnl_b = qty_b * (entry_b_px - exit_b_px)        # short B
-                else:
-                    pnl_a = qty_a * (entry_a_px - exit_a_px)        # short A
-                    pnl_b = qty_b * (exit_b_px - entry_b_px)        # long B
-                realized_pnl = pnl_a + pnl_b
-
-                # Use latest exit ts
-                exit_ts_row = conn.execute(
-                    "SELECT MAX(filled_ts) AS ts FROM orders "
-                    "WHERE pair_id = ? AND status = 'filled' AND filled_ts > ?",
-                    (pair_id, entry_ts[:19] + "Z"),
-                ).fetchone()
-                exit_ts = exit_ts_row["ts"] if exit_ts_row and exit_ts_row["ts"] \
-                    else datetime.now(timezone.utc).isoformat()
-
-                # realized cost bps proxy: total slippage / notional
-                gross_notional = (qty_a * entry_a_px + qty_b * entry_b_px)
-                cost_bps_proxy = 0.0
+                realized_pnl = res["realized_pnl"]
+                cost_bps_proxy = res["realized_cost_bps"]
+                pnl_a, pnl_b = res["pnl_a"], res["pnl_b"]
+                exit_ts = res["exit_ts"] or datetime.now(timezone.utc).isoformat()
 
                 conn.execute(
                     "UPDATE positions SET exit_ts = ?, exit_z = NULL, "
@@ -469,10 +428,10 @@ async def finalize_eom_positions(request: Request):
                 summary["details"].append({
                     "pair_id": pair_id,
                     "direction": direction,
-                    "entry_a_px": round(entry_a_px, 4),
-                    "exit_a_px": round(exit_a_px, 4),
-                    "entry_b_px": round(entry_b_px, 4),
-                    "exit_b_px": round(exit_b_px, 4),
+                    "entry_a_px": round(res["entry_px_a"], 4),
+                    "exit_a_px": round(res["exit_px_a"], 4),
+                    "entry_b_px": round(res["entry_px_b"], 4),
+                    "exit_b_px": round(res["exit_px_b"], 4),
                     "pnl_a": round(pnl_a, 2),
                     "pnl_b": round(pnl_b, 2),
                     "realized_pnl": round(realized_pnl, 2),
@@ -501,6 +460,92 @@ async def finalize_eom_positions(request: Request):
             {"error": f"{type(e).__name__}: {e}", "summary": summary},
             status_code=500,
         )
+
+    return {"ok": True, "summary": summary}
+
+
+@app.post("/api/admin/recompute_pnl")
+async def recompute_pnl(request: Request):
+    """Recompute realized_pnl / realized_cost_bps for every CLOSED position from
+    the actual fill ledger, using the lifecycle-scoped helper (single source of
+    truth). Fixes rows corrupted by the pre-fix multi-lifecycle contamination:
+    a pair traded more than once had a prior round-trip's same-side fills
+    averaged into a later lifecycle's entry price, inflating the loss (observed:
+    CRWD_EQT July stored -$532 vs true -$107).
+
+    Dry-run by default — returns the before/after diff without writing. Pass
+    JSON body {"dry_run": false} to apply. Idempotent.
+    """
+    from live.broker.pnl_calc import lifecycle_realized_pnl
+
+    token_expected = os.environ.get("ADMIN_TOKEN")
+    if not token_expected:
+        return JSONResponse({"error": "ADMIN_TOKEN not configured"}, status_code=503)
+    if request.headers.get("X-Admin-Token", "") != token_expected:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    dry_run = bool(body.get("dry_run", True))
+
+    summary: dict = {"dry_run": dry_run, "changed": 0, "unchanged": 0,
+                     "skipped": 0, "old_total": 0.0, "new_total": 0.0,
+                     "details": []}
+    try:
+        with _conn() as conn:
+            rows = conn.execute(
+                "SELECT pair_id, side_a, side_b, direction, entry_ts, exit_ts, "
+                "realized_pnl FROM positions WHERE exit_ts IS NOT NULL "
+                "ORDER BY exit_ts ASC"
+            ).fetchall()
+            for p in rows:
+                old = float(p["realized_pnl"]) if p["realized_pnl"] is not None else 0.0
+                summary["old_total"] += old
+                # exit_ts bounds the exit fills to THIS lifecycle so a later
+                # round-trip's entry fills (which can land seconds before their
+                # own recorded entry_ts) cannot leak into this exit.
+                res = lifecycle_realized_pnl(
+                    conn, p["pair_id"], p["side_a"], p["side_b"],
+                    int(p["direction"]), p["entry_ts"], p["exit_ts"])
+                if res is None:
+                    summary["skipped"] += 1
+                    summary["new_total"] += old       # keep old if unrecoverable
+                    summary["details"].append(
+                        {"pair_id": p["pair_id"], "entry_ts": p["entry_ts"],
+                         "skipped": "fills incomplete"})
+                    continue
+                new = res["realized_pnl"]
+                summary["new_total"] += new
+                if abs(new - old) < 0.01:
+                    summary["unchanged"] += 1
+                    continue
+                summary["changed"] += 1
+                summary["details"].append({
+                    "pair_id": p["pair_id"], "entry_ts": p["entry_ts"],
+                    "old_realized_pnl": round(old, 2),
+                    "new_realized_pnl": round(new, 2),
+                    "delta": round(new - old, 2),
+                })
+                if not dry_run:
+                    conn.execute(
+                        "UPDATE positions SET realized_pnl = ?, "
+                        "realized_cost_bps = ? WHERE pair_id = ? AND entry_ts = ?",
+                        (new, res["realized_cost_bps"], p["pair_id"], p["entry_ts"]))
+            summary["old_total"] = round(summary["old_total"], 2)
+            summary["new_total"] = round(summary["new_total"], 2)
+            if not dry_run and summary["changed"]:
+                from live.state.persist import log_event
+                log_event(conn, "pnl_recomputed", "WARN",
+                          f"recompute_pnl applied to {summary['changed']} rows; "
+                          f"ledger total {summary['old_total']} -> "
+                          f"{summary['new_total']}")
+    except Exception as e:
+        logger.error(f"recompute_pnl: {type(e).__name__}: {e}")
+        return JSONResponse(
+            {"error": f"{type(e).__name__}: {e}", "summary": summary},
+            status_code=500)
 
     return {"ok": True, "summary": summary}
 
@@ -795,7 +840,15 @@ def trades(limit: int = 50):
 
 @app.get("/api/pnl")
 def pnl():
-    """Realized P&L sums + open-position count."""
+    """Account P&L (broker truth) as headline, plus the DB realized ledger.
+
+    Headline account_pnl_usd = equity - starting_capital: the actual money
+    made/lost, which for a flat account is exactly realized P&L and cannot drift
+    from the broker. realized_pnl_usd is the engine's own trade-by-trade ledger,
+    kept for attribution; ledger_gap_usd = (broker realized) - (ledger realized)
+    should be ~0 — a nonzero gap flags a ledger bug (e.g. the multi-lifecycle
+    fill-contamination that inflated CRWD_EQT July by ~$425).
+    """
     rows = _safe_query(
         "SELECT COALESCE(SUM(realized_pnl), 0) AS realized "
         "FROM positions WHERE exit_ts IS NOT NULL"
@@ -805,8 +858,23 @@ def pnl():
         "SELECT COUNT(*) AS n FROM positions WHERE exit_ts IS NULL"
     )
     n_open = int(open_rows[0]["n"]) if open_rows else 0
+
+    snap = _broker_snapshot()
+    starting = _starting_capital()
+    equity = snap.get("equity")
+    unrealized = snap.get("unrealized_pnl_usd") or 0.0
+    account_pnl = (equity - starting) if equity is not None else None
+    # Realized implied by the broker (strip open MTM) vs the engine's ledger.
+    ledger_gap = ((equity - starting - unrealized) - realized
+                  if equity is not None else None)
     return {
-        "realized_pnl_usd": realized,
+        "account_pnl_usd": account_pnl,            # headline: broker truth
+        "equity": equity,
+        "starting_capital": starting,
+        "unrealized_pnl_usd": snap.get("unrealized_pnl_usd"),
+        "broker_ok": snap.get("ok", False),
+        "realized_pnl_usd": realized,              # DB ledger (attribution)
+        "ledger_gap_usd": ledger_gap,
         "open_positions": n_open,
         "backtest_predicted_annual_usd": 700.0,    # ~0.7% on $100k (honest expectation)
         "backtest_sharpe": 1.28,
@@ -876,14 +944,23 @@ def health_summary():
     return out
 
 
-@app.get("/api/broker")
-def broker():
-    """Live broker snapshot: account equity + unrealized P&L on open positions.
+def _starting_capital() -> float:
+    """Account funding baseline for account-level P&L (equity - this).
 
-    Calls Alpaca read-only. Fully guarded — any failure (no creds locally,
-    network) returns {"ok": false} so the P&L card degrades to '—' instead of
-    erroring. Mark-to-market unrealized P&L is the key 'are we up right now?'
-    number the DB-only /api/pnl (realized only) can't provide.
+    Paper accounts fund at $100k; override via STARTING_CAPITAL if the account
+    is ever re-funded or reset so the headline P&L stays honest.
+    """
+    try:
+        return float(os.environ.get("STARTING_CAPITAL", "100000"))
+    except (TypeError, ValueError):
+        return 100_000.0
+
+
+def _broker_snapshot() -> dict:
+    """Live Alpaca read-only snapshot: equity, unrealized P&L, open positions.
+
+    Fully guarded — any failure (no creds locally, network) returns
+    {"ok": false} so callers degrade gracefully instead of erroring.
     """
     info: dict = {"ok": False, "equity": None, "unrealized_pnl_usd": None,
                   "positions": []}
@@ -906,6 +983,23 @@ def broker():
         info["ok"] = True
     except Exception as e:
         info["error"] = f"{type(e).__name__}: {e}"
+    return info
+
+
+@app.get("/api/broker")
+def broker():
+    """Live broker snapshot + account-level P&L (equity - starting capital).
+
+    account_pnl_usd is the ground-truth money number: for a flat account it
+    equals total realized P&L, and it never diverges from the broker the way a
+    reconstructed DB ledger can. Mark-to-market unrealized P&L is the
+    'are we up right now?' number the DB-only realized ledger can't provide.
+    """
+    info = _broker_snapshot()
+    info["starting_capital"] = _starting_capital()
+    info["account_pnl_usd"] = (
+        info["equity"] - info["starting_capital"]
+        if info.get("equity") is not None else None)
     return info
 
 
