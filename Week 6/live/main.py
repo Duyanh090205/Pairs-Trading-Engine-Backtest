@@ -466,16 +466,31 @@ class LiveEngine:
             await asyncio.sleep(KILL_SWITCH_INTERVAL_S)
 
     async def reconcile_loop(self) -> None:
+        # Two-strike confirmation: a mismatch must persist across TWO
+        # consecutive rounds (RECONCILE_INTERVAL_S apart) before tripping the
+        # kill switch. A transient mid-fill/insert race clears itself by the
+        # next round; a REAL mismatch (manual broker trade, lost fill) does
+        # not. Complements the grace_s fill-window guard inside reconcile().
+        strikes = 0
         while not self._stop:
             try:
                 trading_client = build_trading_client(self.cfg)
                 with connect(STATE_DB_PATH) as conn:
                     mismatches = reconcile(trading_client, conn, tolerance_shares=1.0)
                     if mismatches:
-                        trip_halt_on_mismatch(conn, mismatches)
-                        alert(Severity.ERROR,
-                              f"Reconcile mismatch: {len(mismatches)} tickers",
-                              dedupe_key="reconcile_mismatch")
+                        strikes += 1
+                        if strikes >= 2:
+                            trip_halt_on_mismatch(conn, mismatches)
+                            alert(Severity.ERROR,
+                                  f"Reconcile mismatch: {len(mismatches)} tickers",
+                                  dedupe_key="reconcile_mismatch")
+                        else:
+                            log_event(conn, "reconcile_strike1", "WARN",
+                                      f"mismatch {len(mismatches)} tickers — "
+                                      "awaiting confirmation round before halt",
+                                      {"mismatches": [m.__dict__ for m in mismatches]})
+                    else:
+                        strikes = 0
             except Exception as e:
                 logger.error(f"reconcile_loop error: {type(e).__name__}: {e}")
             await asyncio.sleep(RECONCILE_INTERVAL_S)

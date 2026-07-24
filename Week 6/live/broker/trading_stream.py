@@ -192,19 +192,54 @@ class TradingStreamHandler:
         # legacy row (pre-migration) lacks it.
         entry_z_vals = [l["entry_z"] for l in legs if l["entry_z"] is not None]
         entry_z = float(entry_z_vals[0]) if entry_z_vals else 0.0
+        entry_iso = datetime.now(timezone.utc).isoformat()
         conn.execute(
             "INSERT OR IGNORE INTO positions "
             "(pair_id, side_a, side_b, beta, direction, notional_a, notional_b, "
             " entry_ts, entry_z) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (pair_id, side_a, side_b, beta, direction, notional_a, notional_b,
-             datetime.now(timezone.utc).isoformat(), entry_z),
+             entry_iso, entry_z),
         )
         from live.state.persist import log_event
         log_event(conn, "position_opened", "INFO",
                   f"{pair_id} direction={direction} notional_a=${notional_a:.0f} "
                   f"notional_b=${notional_b:.0f}",
                   {"beta_proxy": beta})
+        self._record_predicted_cost(conn, pair_id, side_a, side_b, direction,
+                                    notional_a, notional_b, entry_iso)
+
+    def _record_predicted_cost(self, conn, pair_id, side_a, side_b, direction,
+                               notional_a, notional_b, entry_iso) -> None:
+        """Wire trade_journal.record_entry: predicted_cost_bps from the V4
+        dynamic cost model. Only records when the real Week 5 cost cache is
+        loadable — the flat 30bp-half-spread fallback would poison the
+        drift metric (and the drift_loss kill-switch trigger) with numbers
+        ~10x our real spreads. Missing cache -> predicted stays NULL.
+        """
+        try:
+            if not hasattr(self, "_cost_data"):
+                from live.monitor.cost_overlay import try_load_cost_data
+                self._cost_data = try_load_cost_data()
+                if self._cost_data is None:
+                    logger.warning("cost cache unavailable — "
+                                   "predicted_cost_bps stays NULL")
+            if self._cost_data is None:
+                return
+            from live.monitor.cost_overlay import compute_predicted_cost_usd
+            usd = compute_predicted_cost_usd(
+                self._cost_data, side_a, side_b, entry_iso, entry_iso,
+                notional_per_leg=notional_a, side_a=direction,
+            )
+            denom = notional_a + notional_b
+            if denom <= 0:
+                return
+            from live.monitor.trade_journal import record_entry
+            record_entry(conn, pair_id, usd / denom * 10_000)
+        except Exception as e:
+            # Telemetry only — never let cost recording break fill handling.
+            logger.warning(f"predicted cost recording failed for {pair_id}: "
+                           f"{type(e).__name__}: {e}")
 
     def _maybe_close_position(self, conn, coid: str) -> None:
         """When both EXIT legs of a pair fill, UPDATE positions to set
@@ -245,10 +280,12 @@ class TradingStreamHandler:
             position.entry_ts. ts_op is '<=' (for entry side, count fills at
             or before entry_ts) or '>' (for exit side, count fills strictly
             after entry_ts so prior lifecycle's exits don't contaminate
-            today's just-opened position)."""
+            today's just-opened position). Also returns qty-weighted
+            decision_price (0.0 when absent — legacy rows) for slippage."""
             row = conn.execute(
                 f"SELECT SUM(fill_qty) AS q, "
                 f"SUM(fill_qty * fill_price) / NULLIF(SUM(fill_qty), 0) AS px, "
+                f"SUM(fill_qty * decision_price) / NULLIF(SUM(fill_qty), 0) AS dpx, "
                 f"MAX(filled_ts) AS ts "
                 f"FROM orders WHERE pair_id = ? AND ticker = ? "
                 f"AND side = ? AND status = 'filled' "
@@ -258,6 +295,7 @@ class TradingStreamHandler:
             return (
                 float(row["q"]) if row and row["q"] else 0.0,
                 float(row["px"]) if row and row["px"] else 0.0,
+                float(row["dpx"]) if row and row["dpx"] else 0.0,
                 row["ts"] if row else None,
             )
 
@@ -265,10 +303,10 @@ class TradingStreamHandler:
         # Exit fills: STRICTLY after entry_ts — this prevents the bug where a
         # prior lifecycle's EOM exits get mixed with today's new entry and
         # falsely close the position immediately.
-        eqa, epa, _ = _sum_filled(ta, entry_side_a, "<=", entry_ts)
-        eqb, epb, _ = _sum_filled(tb, entry_side_b, "<=", entry_ts)
-        xqa, xpa, xtsa = _sum_filled(ta, exit_side_a, ">", entry_ts)
-        xqb, xpb, xtsb = _sum_filled(tb, exit_side_b, ">", entry_ts)
+        eqa, epa, edpa, _ = _sum_filled(ta, entry_side_a, "<=", entry_ts)
+        eqb, epb, edpb, _ = _sum_filled(tb, entry_side_b, "<=", entry_ts)
+        xqa, xpa, xdpa, xtsa = _sum_filled(ta, exit_side_a, ">", entry_ts)
+        xqb, xpb, xdpb, xtsb = _sum_filled(tb, exit_side_b, ">", entry_ts)
 
         # Both exit legs must be filled
         if xqa <= 0 or xqb <= 0:
@@ -291,13 +329,32 @@ class TradingStreamHandler:
         exit_ts = max([t for t in (xtsa, xtsb) if t],
                       default=datetime.now(timezone.utc).isoformat())
 
+        # Realized execution cost = broker slippage vs decision price across
+        # the 4 legs of THIS lifecycle, normalized to traded notional (bps).
+        # Convention (cost_overlay): BUY filled above decision = positive
+        # cost; SELL filled below decision = positive cost. Legacy rows with
+        # decision_price NULL/0 are excluded from both numerator and
+        # denominator (can't measure their slippage).
+        slip_usd = 0.0
+        traded_usd = 0.0
+        legs_slip = (
+            (entry_side_a, qty_a, epa, edpa), (entry_side_b, qty_b, epb, edpb),
+            (exit_side_a, qty_a, xpa, xdpa), (exit_side_b, qty_b, xpb, xdpb),
+        )
+        for side, q, fp, dp in legs_slip:
+            if q <= 0 or fp <= 0 or dp <= 0:
+                continue
+            slip_usd += q * ((fp - dp) if side == "buy" else (dp - fp))
+            traded_usd += q * dp
+        realized_cost_bps = slip_usd / traded_usd * 10_000 if traded_usd > 0 else 0.0
+
         # exit_z and exit_reason: trade_update has no Z context, so write
         # NULL exit_z and exit_reason='zero_cross' (the normal exit path).
         # EOM-driven exits get reason='eom' via the admin endpoint.
         from live.monitor.trade_journal import record_exit
         record_exit(conn, pair_id, exit_ts=exit_ts, exit_z=0.0,
                     exit_reason="zero_cross", realized_pnl=realized_pnl,
-                    realized_cost_bps=0.0)
+                    realized_cost_bps=realized_cost_bps)
         from live.state.persist import log_event
         log_event(conn, "position_closed", "INFO",
                   f"{pair_id} realized_pnl=${realized_pnl:+.2f} "

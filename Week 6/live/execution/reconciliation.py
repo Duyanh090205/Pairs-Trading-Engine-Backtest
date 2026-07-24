@@ -57,10 +57,39 @@ def _expected_local_qty(conn: sqlite3.Connection, ticker: str) -> float:
     return qty
 
 
+def _recent_fill_activity(conn: sqlite3.Connection, grace_s: float) -> bool:
+    """True if any order filled within the last `grace_s` seconds.
+
+    Guards the mid-fill race (2026-07-06 incident): broker already shows the
+    position but the positions row is only INSERTed by TradingStream after
+    BOTH legs fill — reconcile running inside that window sees a false
+    mismatch (local qty counts only orders of OPEN positions) and trips the
+    kill switch. ISO-8601 UTC strings compare lexicographically.
+    """
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=grace_s)).isoformat()
+    row = conn.execute(
+        "SELECT 1 FROM orders WHERE filled_ts IS NOT NULL AND filled_ts >= ? "
+        "LIMIT 1", (cutoff,),
+    ).fetchone()
+    return row is not None
+
+
 def reconcile(trading_client, conn: sqlite3.Connection,
-              tolerance_shares: float = 1.0) -> list[ReconcileMismatch]:
-    """Return mismatches > tolerance_shares. Empty = clean."""
+              tolerance_shares: float = 1.0,
+              grace_s: float = 180.0) -> list[ReconcileMismatch]:
+    """Return mismatches > tolerance_shares. Empty = clean.
+
+    Skips the round entirely (returns []) if a fill happened within the last
+    `grace_s` seconds — the positions-row insert may still be in flight.
+    Pass grace_s=0 to disable (tests).
+    """
     from live.state.persist import log_event
+    if grace_s > 0 and _recent_fill_activity(conn, grace_s):
+        log_event(conn, "reconcile_skipped", "INFO",
+                  f"fill within last {grace_s:.0f}s — skipping round "
+                  "(mid-fill grace window)")
+        return []
     try:
         positions = trading_client.get_all_positions()
     except Exception as e:
