@@ -200,8 +200,7 @@
         return `<div class="big" style="color:${color}">${fmtUsd(head)}</div>
                 ${sub}
                 <div>open: ${data.open_positions} pairs</div>
-                <div class="muted"><small>ledger (sổ engine): <b style="color:${ledColor}">${fmtUsd(led)}</b>${gapWarn}</small></div>
-                <div class="muted">backtest predicted annual: ~$${data.backtest_predicted_annual_usd} (Sharpe ${data.backtest_sharpe})</div>`;
+                <div class="muted"><small>ledger (sổ engine): <b style="color:${ledColor}">${fmtUsd(led)}</b>${gapWarn}</small></div>`;
       }
 
       // -------- Cost Drift — formatted, not raw JSON --------
