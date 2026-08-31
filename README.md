@@ -1,6 +1,14 @@
 # Pairs Trading Engine & Backtest
 
-An institutional-grade quantitative pairs trading pipeline built from scratch over 6 weeks. The project spans the full lifecycle — from raw data ingestion and statistical pair discovery through signal generation, verified backtesting, microstructure-aware friction modeling, and live paper-trading deployment.
+A statistical arbitrage pipeline built end to end, May-July 2026 — and the evidence that it
+does not work. **The headline result is negative.** Screening the S&P 500 through an
+all-pairs cointegration scan with Benjamini-Hochberg correction, **zero pairs survived** the
+full filter funnel over twelve months of 2022 data.
+
+The pipeline is the point: raw data ingestion, pair discovery, signal generation, a backtest
+engine with look-ahead bias injected on purpose to measure how much it inflates Sharpe,
+microstructure-aware friction modeling, and a live paper-trading deployment. It was built to
+be capable of finding an edge, then used honestly enough to report that it found none.
 
 ---
 
