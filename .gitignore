@@ -37,3 +37,12 @@ MANIFEST
 .vscode/
 .idea/
 *.swp
+
+# AI assistant scratch, vendored third-party skills, and exported chat logs
+.claude/
+**/.claude/
+**/.agents/skills/
+**/AI Chat History export/
+**/antigravity_export/
+CLAUDE.md
+**/CLAUDE.md
