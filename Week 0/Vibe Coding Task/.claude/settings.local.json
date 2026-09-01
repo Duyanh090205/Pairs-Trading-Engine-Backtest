@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(python src/main.py)",
-      "Bash(python3:*)",
-      "Bash(python:*)"
-    ]
-  }
-}

@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(rm -rf outputs)",
-      "Bash(python analyze_crash.py)",
-      "WebSearch"
-    ]
-  }
-}
