@@ -10,6 +10,23 @@ engine with look-ahead bias injected on purpose to measure how much it inflates 
 microstructure-aware friction modeling, and a live paper-trading deployment. It was built to
 be capable of finding an edge, then used honestly enough to report that it found none.
 
+## Quickstart
+
+**The scan cannot be re-run from this repository.** The raw 1-minute price panel is
+several gigabytes and is not committed, so the cointegration screen has no input here.
+Saying so is cheaper than shipping a command that fails.
+
+What is committed, and what to read instead:
+
+| Where | What it shows |
+|---|---|
+| [`Week 1/Week1_Pairs_Selection_Report.ipynb`](Week%201/Week1_Pairs_Selection_Report.ipynb) | The pair-discovery notebook with outputs saved — the filter funnel, and the zero survivors at the end of it |
+| [`Week 3/`](Week%203/) | The look-ahead bias study: the injection scripts and run logs |
+| [`Week 4/results/`](Week%204/results/) | The 45-fold monthly walk-forward validation output |
+| [`Week 6/`](Week%206/) | The live paper-trading engine, cost model and audits |
+
+Every week folder has its own README describing what was built and what it found.
+
 ---
 
 ## Pipeline Architecture
